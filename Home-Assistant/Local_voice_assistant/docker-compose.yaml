@@ -1,0 +1,35 @@
+version: '3'
+services:
+  piper:
+    container_name: wyoming-piper
+    image: rhasspy/wyoming-piper
+    command: --voice es_ES-sharvard-medium
+    volumes:
+      - ./piper:/data
+    environment:
+      - TZ=Europe/Madrid
+    restart: unless-stopped
+    ports:
+      - 10200:10200
+  whisper:
+    container_name: wyoming-whisper
+    image: rhasspy/wyoming-whisper
+    command: --model tiny-int8 --language es
+    volumes:
+      - ./whisper:/data
+    environment:
+      - TZ=Europe/Madrid
+    restart: unless-stopped
+    ports:
+      - 10300:10300
+  openwakeword:
+    container_name: wyoming-openwakeword
+    image: rhasspy/wyoming-openwakeword
+    command: --preload-model 'ok_nabu' --custom-model-dir /custom
+    volumes:
+      - ./openwakeword/custom:/custom
+    environment:
+      - TZ=Europe/Madrid
+    restart: unless-stopped
+    ports:
+      - 10400:10400
