@@ -19,7 +19,7 @@ cd /opt/victronenergy/gui/qml
 cp OverviewGridParallel.qml OverviewGridParallel.qml.bak
 
 # Download the new file in place
-wget -qLO - https://github.com/SergioRius/recipes-iot/raw/main/Victron_Venus/OverviewGridParallel.qml
+wget https://github.com/SergioRius/recipes-iot/raw/main/Victron_Venus/OverviewGridParallel.qml
 
 # Reboot the device
 reboot && exit
