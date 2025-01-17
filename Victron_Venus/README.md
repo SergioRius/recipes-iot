@@ -34,8 +34,10 @@ cp OverviewGridParallel.qml.bak OverviewGridParallel.qml
 reboot && exit
 ```
 
-Keep in mind that if you do the complete install procedure, you may nuke the backup with a copy of the new file. So if you are trying again or updating this file, don't execute the backup command.
+> [!NOTE]  
+> Keep in mind that if you do the complete install procedure, you may nuke the backup with a copy of the new file. So if you are trying again or updating this file, don't execute the backup command.
+>
+> If you update the Venus system, this it will undo this patch and you will have to do it again.
 
-If you update the Venus system, this it will undo this patch and you will have to do it again.
-
-This procedure is shared solely for testing and fun, and never for use in production installations. In case of failure or damage, I decline all responsibility.
+> [!WARNING]  
+> This procedure is shared solely for testing and fun, and never for use in production installations. In case of failure or damage, I decline all responsibility.
