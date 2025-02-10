@@ -1,0 +1,278 @@
+[
+    {
+        "id": "ee34683e751e8221",
+        "type": "comment",
+        "z": "c5fcdc7f2502a308",
+        "name": "JKBMS USB Decoding",
+        "info": "",
+        "x": 220,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "66240475699d21f7",
+        "type": "inject",
+        "z": "c5fcdc7f2502a308",
+        "name": "trigger",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "[]",
+        "payloadType": "bin",
+        "x": 170,
+        "y": 240,
+        "wires": [
+            [
+                "0177aa7fd0a231f2"
+            ]
+        ]
+    },
+    {
+        "id": "0177aa7fd0a231f2",
+        "type": "function",
+        "z": "c5fcdc7f2502a308",
+        "name": "Request",
+        "func": "//msg.payload = Buffer.from([0x55, 0xaa, 0x01, 0xff, 0x00, 0x00, 0xff])\n//msg.payload = Buffer.from([0xdd, 0xa5, 0x03, 0x00, 0xff, 0xfd , 0x77])\n\n// JKBMS Dump all registers:\n// 4E 57 00 13 00 00 00 00 06 03 00 00 00 00 00 00 68 00 00 01 29\nmsg = {\n    payload: Buffer.from([0x4E, 0x57, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00, 0x01, 0x29]),\n    timeout: 10000\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 320,
+        "y": 240,
+        "wires": [
+            [
+                "7edcc5c2b2f40e74",
+                "3729c9fbf751f535"
+            ]
+        ]
+    },
+    {
+        "id": "3729c9fbf751f535",
+        "type": "debug",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 470,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "7edcc5c2b2f40e74",
+        "type": "serial request",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "serial": "33a190bb5f257765",
+        "x": 490,
+        "y": 240,
+        "wires": [
+            [
+                "1bb1fa6a4237aa6c"
+            ]
+        ]
+    },
+    {
+        "id": "1bb1fa6a4237aa6c",
+        "type": "change",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload",
+                "pt": "msg",
+                "to": "buffer",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 680,
+        "y": 240,
+        "wires": [
+            [
+                "5a9728861aea2322",
+                "25ab3190f361277a"
+            ]
+        ]
+    },
+    {
+        "id": "5a9728861aea2322",
+        "type": "function",
+        "z": "c5fcdc7f2502a308",
+        "name": "parse payload",
+        "func": "function chksum(buffer, len) {\n  var checksum = 0;\n  for (let ii = 0; ii < len; ii++) {\n    checksum = checksum + buffer[ii];\n  }\n  return checksum;\n}\n\nfunction getData(marker, from, length) {\n    if (msg.buffer[from - 1] != marker) {\n        node.warn(marker + ' marker incorrect, at offset:' + (from - 1));\n        return null;\n    }\n    return msg.buffer[from] << 8 | msg.buffer[from + length - 1] << 0;    \n}\n\nif (msg.buffer[0] != 0x4E || msg.buffer[1] != 0x57)\n    node.warn ('Invalid header')\n\nmsg.jkbms = {};\nmsg.jkbms.data_len = msg.buffer[2] << 8 | msg.buffer[2 + 1] << 0;\n// msg.jkbms.function = msg.buffer[8];\nmsg.jkbms.computed_crc = chksum(msg.buffer, msg.jkbms.data_len);\n\nmsg.jkbms.remote_crc = msg.buffer[msg.jkbms.data_len] << 8 | msg.buffer[msg.jkbms.data_len + 1] << 0;\n\nif (msg.jkbms.computed_crc != msg.jkbms.remote_crc)\n    node.warn('JkModbus CRC Check failed!');\n\nmsg.payload = {\n    Serial: \"\",\n    Dc: {\n        Power: null,\n        Voltage: null,\n        Current: null,\n        Temperature: null,\n    },\n    InstalledCapacity: null,\n    ConsumedAmphours: null,\n    Capacity: null,\n    Soc: null,\n    TimeToGo: null,\n    Balancing: 0,\n    Alarms: {},\n    Info: {},\n    History: {},\n    System: {},\n    Voltages: {},\n    Balances: {},\n    Io: {}\n};\n\n// Cell voltages\nlet cellbase = 11+1;\n\n// offset = cellByteCount + 30;\n// msg.payload.System.NrOfCellsPerBattery = getData(0x8A, offset, 2);\n\n// node.warn({cellByteCount: getData(0x79, 12, 1)});\n\nmsg.payload.System.NrOfCellsPerBattery = msg.buffer[cellbase] / 3;\nfor (let cell = 1; cell <= msg.payload.System.NrOfCellsPerBattery; cell++) {\n    msg.payload.Voltages['Cell' + cell] = (msg.buffer[cellbase + cell * 3 - 1] << 8 | msg.buffer[cellbase + cell * 3] << 0) / 1000;\n}\ncellbase = 11 + 1 + msg.payload.System.NrOfCellsPerBattery * 3;\n\nconst cellByteCount = 11 + msg.payload.System.NrOfCellsPerBattery * 3;\nmsg.jkbms.cellByteCount = cellByteCount;\n\n\nvar offset = 1;\n\n////////////////////////////////\n// var cellbyte_count = msg.buffer[offset + 1] << 8 | msg.buffer[offset + 1] << 0;//unpack_from(\">B\", self.get_data(status_data, b\"\\x79\", offset, 1))[0]\n\n// offset = cellbyte_count + 30\n// var cell_count = getData(0x80, offset, 2);; //unpack_from(\">H\", self.get_data(status_data, b\"\\x8A\", offset, 2))[0]\n\n// node.warn({ cellByteCount: cellByteCount, cellbyte_count: cellbyte_count, cellcount: msg.payload.System.NrOfCellsPerBattery, cell_count: cell_count});\n/////////////////////////////\n\nconst voltagesArray = Object.entries(msg.payload.Voltages);\n\n// Max cell voltage\nconst sortedByMaxCellVoltage = voltagesArray.sort(([, a], [, b]) => b - a)\nmsg.payload.System.MaxCellVoltage = sortedByMaxCellVoltage[0][1];\nmsg.payload.System.MaxVoltageCellId = sortedByMaxCellVoltage[0][0].replace(\"Cell\", \"C\");\n\n// Min cell voltage\nconst sortedByMinCellVoltage = voltagesArray.sort(([, a], [, b]) => a - b)\nmsg.payload.System.MinCellVoltage = sortedByMinCellVoltage[0][1];\nmsg.payload.System.MinVoltageCellId = sortedByMinCellVoltage[0][0].replace(\"Cell\", \"C\");\n\n// Diff cell voltage\nmsg.payload.System.DiffCellVoltage = Math.round((msg.payload.System.MaxCellVoltage - msg.payload.System.MinCellVoltage) * 1000) / 1000;\n\n// MOSTemperature\noffset = cellByteCount + 3;\nconst valueMOSTemp = getData(0x80, offset, 2);\nmsg.payload.System.MOSTemperature = valueMOSTemp < 99 ? valueMOSTemp : (100 - valueMOSTemp);\n\n// Temperature1\noffset = cellByteCount + 6;\nconst valueTemp1 = getData(0x81, offset, 2);\nmsg.payload.System.Temperature1 = Math.round(valueTemp1 * 10) / 10;\n\n// Temperature2\noffset = cellByteCount + 9;\nconst valueTemp2 = getData(0x82, offset, 2);\nmsg.payload.System.Temperature2 = Math.round(valueTemp2 * 10) / 10;\n\n// TODO: Get one closest to limits (Ex 0 and 50)\nmsg.payload.Dc.Temperature = msg.payload.System.Temperature1;\n\n// Dc.Voltage\noffset = cellByteCount + 12;\nmsg.payload.Dc.Voltage = getData(0x83, offset, 2) / 100;\n\n// Dc.Current\noffset = cellByteCount + 15;\nmsg.jkbms.current_raw = getData(0x84, offset, 2);\n\nlet CURRENT_ZERO_CONSTANT = 32768\nif (msg.jkbms.current_raw < CURRENT_ZERO_CONSTANT)\n    msg.payload.Dc.Current = msg.jkbms.current_raw / -100;\nelse\n    msg.payload.Dc.Current = (msg.jkbms.current_raw - CURRENT_ZERO_CONSTANT) / 100;\n\n// Power\nmsg.payload.Dc.Power = msg.payload.Dc.Current * msg.payload.Dc.Voltage;\n\n// Soc\noffset = cellByteCount + 18;\nif (msg.buffer[offset-1] != 0x85)\n    node.warn ('SOC marker incorrect, at offset:' + offset);\nmsg.payload.Soc = msg.buffer[offset];\n\n// InstalledCapacity\noffset = cellByteCount + 121;\nmsg.payload.InstalledCapacity = getData(0xAA, offset, 4);\n\n// Capacity (remaining)\noffset = cellByteCount + 25;\nmsg.payload.Capacity = getData(0x89, offset, 4); \n\n// ConsumedAmphours\nif (msg.payload.InstalledCapacity !== null && msg.payload.Capacity !== null)\n    msg.payload.ConsumedAmphours = Math.abs(msg.payload.InstalledCapacity - msg.payload.Capacity);\n\n// TimeToGo (only charging)\nvar percent_per_seconds = Math.abs(msg.payload.Dc.Current / (msg.payload.InstalledCapacity / 100)) / 3600;\nconst soc_diff = 100 - msg.payload.Soc;\nvar seconds_to_go = soc_diff / percent_per_seconds;\nmsg.payload.TimeToGo = seconds_to_go != null && msg.payload.Dc.Current > 0.1 ? seconds_to_go : null;\n\n// Max Battery Voltage\n//TODO: Calculate battery.py:558\n\n//TODO: Those below are BMS limits. Calculate Battery limits.\n// Continued charge current\noffset = cellByteCount + 72;\nmsg.payload.Info.MaxChargeCurrent = getData(0x99, offset, 2);\n\n// Continued discharge current\noffset = cellByteCount + 66;\nmsg.payload.Info.MaxDischargeCurrent = getData(0x97, offset, 2);\n\n\n//numberof NTC\noffset = cellByteCount + 20;\nif (msg.buffer[offset-1] != 0x86)\n    node.warn ('number of NTC marker incorrect!');\nmsg.jkbms.numberOfNTC = msg.buffer[offset];\n\n// History.ChargeCycles\noffset = cellByteCount + 22;\nmsg.payload.History.ChargeCycles = getData(0x87, offset, 2);\n\n// batteryCycleCapacityAh\noffset = cellByteCount + 25;\nif (msg.buffer[offset-1] != 0x89)\n    node.warn('battery cycle capacity Ah marker incorrect!');\nmsg.jkbms.batteryCycleCapacityAh = (msg.buffer[offset] << 24 | msg.buffer[offset + 1] << 16 | msg.buffer[offset + 2] << 8 | msg.buffer[offset + 3] << 0);\n\n// NumberOfStrings\noffset = cellByteCount + 30;\nmsg.jkbms.numberOfStrings = getData(0x8A, offset, 2);\n\n\n//battery warning\nconst lowCapacity                         = 0x0000000000000001; // Bit 0: Low capacity alarm: 1 warning only, 0 nomal -> OK\nconst powerTubeOvertemperature            = 0x0000000000000010; // Bit 1: MOS tube overtemperature alarm: 1 alarm, 0 nomal -> OK\nconst chargingOvervoltage                 = 0x0000000000000100; // Bit 2: Charge over voltage alarm: 1 alarm, 0 nomal -> OK\nconst dischargingUndervoltage             = 0x0000000000001000; // Bit 3: Discharge undervoltage alarm: 1 alarm, 0 nomal -> OK\nconst batteryOverTemperature              = 0x0000000000010000; // Bit 4: Battery overtemperature alarm: 1 alarm, 0 nomal -> OK\nconst chargingOvercurrent                 = 0x0000000000100000; // Bit 5: Charge overcurrent alarm: 1 alarm, 0 nomal -> OK\nconst dischargingOvercurrent              = 0x0000000001000000; // Bit 6: discharge over current alarm: 1 alarm, 0 nomal -> OK\nconst cellPressureDifference              = 0x0000000010000000; // Bit 7: core differential pressure alarm: 1 alarm, 0 nomal -> OK\nconst overtemperatureAlarmInTheBatteryBox = 0x0000000100000000; // Bit 8: overtemperature alarm in the battery box: 1 alarm, 0 nomal -> OK\nconst batteryLowTemperature               = 0x0000001000000000; // Bit 9: Battery low temperature alarm: 1 alarm, 0 nomal -> OK\nconst cellOvervoltage                     = 0x0000010000000000; // Bit 10: Unit overvoltage: 1 alarm, 0 nomal -> OK\nconst cellUndervoltage                    = 0x0000100000000000; // Bit 11: Unit undervoltage: 1 alarm, 0 nomal -> OK\nconst alarm309_AProtection                = 0x0001000000000000; // Bit 12:309_A protection: 1 alarm, 0 nomal\nconst alarm309_BProtection                = 0x0010000000000000; // Bit 13:309_B protection: 1 alarm, 0 nomal\n\noffset = cellByteCount + 33;\nmsg.jkbms.batteryWarning = getData(0x8B, offset, 2);\n\nmsg.payload.Alarms.LowSoc = msg.jkbms.batteryWarning & lowCapacity;\nmsg.payload.Alarms.HighInternalTemperature = msg.jkbms.batteryWarning & powerTubeOvertemperature;\nmsg.payload.Alarms.HighVoltage = msg.jkbms.batteryWarning & chargingOvervoltage;\nmsg.payload.Alarms.LowVoltage = msg.jkbms.batteryWarning & dischargingUndervoltage;\nmsg.payload.Alarms.HighTemperature = (msg.jkbms.batteryWarning & batteryOverTemperature) || (msg.jkbms.batteryWarning & overtemperatureAlarmInTheBatteryBox);\nmsg.payload.Alarms.HighChargeCurrent = msg.jkbms.batteryWarning & chargingOvercurrent;\nmsg.payload.Alarms.HighDischargeCurrent = msg.jkbms.batteryWarning & dischargingOvercurrent;\nmsg.payload.Alarms.CellImbalance = msg.jkbms.batteryWarning & cellPressureDifference;\n// msg.payload.Alarms.overtemperatureAlarmInTheBatteryBox = msg.jkbms.batteryWarning & overtemperatureAlarmInTheBatteryBox;\nmsg.payload.Alarms.LowTemperature = msg.jkbms.batteryWarning & batteryLowTemperature;\nmsg.payload.Alarms.HighCellVoltage = msg.jkbms.batteryWarning & cellOvervoltage;\nmsg.payload.Alarms.LowCellVoltage = msg.jkbms.batteryWarning & cellUndervoltage;\n// msg.payload.Alarms.alarm309_AProtection = msg.jkbms.batteryWarning & alarm309_AProtection;\n// msg.payload.Alarms.alarm309_BProtection = msg.jkbms.batteryWarning & alarm309_BProtection;\n\ncellbase+= 2;\n\n//battery status\nconst chargingEnabled                         = 0b0000000000000001;\nconst dischargingEnabled                      = 0b0000000000000010;\nconst balancingEnabled                        = 0b0000000000000100;\nconst batteryConnected                        = 0b0000000000001000;\n\noffset = cellByteCount + 36;\nmsg.jkbms.batteryStatus = getData(0x8C, offset, 2);\n\nmsg.payload.Io.AllowToCharge = msg.jkbms.batteryStatus & chargingEnabled ? 1 : 0;\nmsg.payload.Io.AllowToDischarge = msg.jkbms.batteryStatus & dischargingEnabled ? 1 : 0;\nmsg.payload.Io.AllowToBalance = msg.jkbms.batteryStatus & balancingEnabled ? 1 : 0;\nmsg.payload.Io.ExternalRelay = msg.jkbms.batteryStatus & batteryConnected ? 1 : 0;\n\n// Cell balancing\nfor (let [k] of Object.entries(msg.payload.Voltages)) {\n    // node.warn({k, v});\n    let cellId = k.replace(\"Cell\", \"C\");\n    msg.payload.Balances[k] = (msg.payload.Io.AllowToBalance && (cellId == msg.payload.System.MinVoltageCellId || cellId == msg.payload.System.MaxVoltageCellId)) ? 1 : 0;\n    if (msg.payload.Balances[k] && !msg.payload.Balancing) msg.payload.Balancing == 1;\n}\n\n// UserPrivateData\noffset = cellByteCount + 155;\nmsg.jkbms.UserPrivateData = getData(0xB4, offset, 8);\n// msg.payload.UserPrivateData.replace(\"x00\", \" \");\n\n// Version\noffset = cellByteCount + 174;\nmsg.jkbms.Version = getData(0xB7, offset, 15);\n\n// UniqueIdentifier\noffset = cellByteCount + 209;\nif (msg.buffer[offset - 1] != 0x61)\n    node.warn('UniqueIdentifier marker incorrect!');\nmsg.jkbms.UniqueIdentifier = msg.buffer.slice(offset, offset + 10);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 900,
+        "y": 240,
+        "wires": [
+            [
+                "e8e4a4b757483cd8"
+            ]
+        ]
+    },
+    {
+        "id": "25ab3190f361277a",
+        "type": "debug",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 870,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "e8e4a4b757483cd8",
+        "type": "change",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload",
+                "pt": "msg",
+                "to": "output",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "jkbms.UniqueIdentifier",
+                "tot": "msg",
+                "dc": true
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1100,
+        "y": 280,
+        "wires": [
+            [
+                "fcfe1261cb8bbcff"
+            ]
+        ]
+    },
+    {
+        "id": "fcfe1261cb8bbcff",
+        "type": "converter",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "from": "binary",
+        "x": 1140,
+        "y": 320,
+        "wires": [
+            [
+                "1eda16c55610efc6"
+            ]
+        ]
+    },
+    {
+        "id": "1eda16c55610efc6",
+        "type": "change",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload",
+                "pt": "msg",
+                "to": "output.Serial",
+                "tot": "msg"
+            },
+            {
+                "t": "move",
+                "p": "output",
+                "pt": "msg",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1180,
+        "y": 360,
+        "wires": [
+            [
+                "a6b6a4d7373d9a48"
+            ]
+        ]
+    },
+    {
+        "id": "a6b6a4d7373d9a48",
+        "type": "debug",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1350,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "33a190bb5f257765",
+        "type": "serial-port",
+        "name": "/dev/ttyUSB0",
+        "serialport": "/dev/ttyUSB0",
+        "serialbaud": "115200",
+        "databits": "8",
+        "parity": "none",
+        "stopbits": "1",
+        "waitfor": "",
+        "dtr": "none",
+        "rts": "none",
+        "cts": "none",
+        "dsr": "none",
+        "newline": "500",
+        "bin": "bin",
+        "out": "interbyte",
+        "addchar": "",
+        "responsetimeout": "10"
+    }
+]
