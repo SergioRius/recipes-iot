@@ -124,7 +124,7 @@ mqtt:
       value_template: "{{ (value_json['value'] * -1)|round(1) }}"
       unit_of_measurement: "Ah"
 
-    - name: Battery Max cell voltage
+    - name: Battery Cell MaxVoltage
       unique_id: 93487630-8e02-42d9-b2b0-f31a9ae09b78
       device: *victron_device_info
       device_class: voltage
@@ -133,7 +133,7 @@ mqtt:
       value_template: "{{ value_json['value'] }}"
       unit_of_measurement: "V"
 
-    - name: Battery Min cell voltage
+    - name: Battery Cell MinVoltage
       unique_id: 3fe0691e-9e36-41f5-9f84-4810f90ca526
       device: *victron_device_info
       device_class: voltage
@@ -486,6 +486,36 @@ mqtt:
         - Optimizado (Recarga)
         - Mantener
 
+template:
+
+  - sensor:
+
+    - name: Victron PvSources total power
+      unique_id: 1a3ebadd-29d2-4f31-8833-e63efcbf0ddd
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ (
+          states('sensor.victron_solarcharger_power')|float(0) 
+          + states('sensor.victron_pvinverter_ac_power')|float(0)
+          )|round(0)
+        }}
+      unit_of_measurement: "W"
+      icon: mdi:white-balance-sunny
+
+    # Groups: Storage
+
+    - name: Victron Battery Cell DiffVoltage
+      unique_id: 0a2a5c00-ff02-4bb6-921e-c126130dec4f
+      device_class: voltage
+      state_class: measurement
+      state: >
+        {{ (
+          states('sensor.victron_battery_cell_maxvoltage')|float(0) 
+          - states('sensor.victron_battery_cell_minvoltage')|float(0)
+          )|round(3) }}
+      unit_of_measurement: "V"
+
 homeassistant:
   customize_glob:
     "*.victron_*":
@@ -513,10 +543,12 @@ homeassistant:
       friendly_name: 'Corriente de carga'
     sensor.victron_battery_consumed_ah:
       friendly_name: 'Ah consumidos'
-    sensor.victron_battery_min_cell_voltage:
+    sensor.victron_battery_cell_minvoltage:
       friendly_name: 'Voltaje Mín. celdas'
-    sensor.victron_battery_max_cell_voltage:
+    sensor.victron_battery_cell_maxvoltage:
       friendly_name: 'Voltaje Max. celdas'
+    sensor.victron_battery_cell_diffvoltage:
+      friendly_name: 'Diferencia de voltaje entre celdas'
     binary_sensor.victron_battery_balancing:
       friendly_name: 'Batería balanceando'
 
@@ -545,6 +577,9 @@ homeassistant:
       friendly_name: 'Producción total inversor solar'
     sensor.victron_pvinverter_power_limit:
       friendly_name: 'Límite potencia inversor solar'
+
+    sensor.victron_pvsources_total_power:
+      friendly_name: 'Producción total'
 
     sensor.victron_grid_power:
       friendly_name: 'Potencia de red'
