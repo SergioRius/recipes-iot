@@ -392,6 +392,34 @@ mqtt:
       step: 1
       mode: box
 
+    - name: Settings GridPeakShaving ImportLimit
+      unique_id: 5c90f507-f011-4a17-b32a-df8de83d36cb
+      device: *victron_device_info
+      icon: mdi:cog
+      state_topic: "venus_get/settings/0/Settings/CGwacs/AcInputLimit"
+      value_template: "{{ value_json['value']|round(0) }}"
+      command_topic: "venus_set/settings/0/Settings/CGwacs/AcInputLimit"
+      command_template: '{"value":{{ value }}}'
+      unit_of_measurement: A
+      min: -1
+      max: 10000
+      step: 1
+      mode: box
+
+    - name: Settings GridPeakShaving ExportLimit
+      unique_id: f32df210-04c5-479f-9ec3-3107fd0c0fa9
+      device: *victron_device_info
+      icon: mdi:cog
+      state_topic: "venus_get/settings/0/Settings/CGwacs/AcExportLimit"
+      value_template: "{{ value_json['value']|round(0) }}"
+      command_topic: "venus_set/settings/0/Settings/CGwacs/AcExportLimit"
+      command_template: '{"value":{{ value }}}'
+      unit_of_measurement: A
+      min: -1
+      max: 10000
+      step: 1
+      mode: box
+
 
     - name: Settings Battery MinSoc
       unique_id: 4a0f535f-6753-4895-8a9d-9aaefd2b8dbb
@@ -606,6 +634,10 @@ homeassistant:
       friendly_name: 'Pot. de red'
     number.victron_settings_gridmaxfeedin:
       friendly_name: 'Max. Exportación'
+    number.victron_settings_gridpeakshaving_importlimit:
+      friendly_name: 'Límite importación de red'
+    number.victron_settings_gridpeakshaving_exportlimit:
+      friendly_name: 'Límite exportación de red'
 
     number.victron_settings_battery_minsoc:
       friendly_name: 'Soc Min.'
