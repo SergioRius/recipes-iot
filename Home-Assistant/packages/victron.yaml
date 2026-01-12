@@ -1,7 +1,11 @@
 #
 # Victron package for Home Assistant
 # ---------------------------------------------------------
-# Save in a folder called "packages" in your configuration folder and edit your configuration file to import it, like:
+# Save in a folder called "packages" in your configuration folder and edit your configuration file to import it, under the homeassitant key.
+#
+# homeassistant:
+#   name: MiHome
+#   ...
 #   packages: !include_dir_named packages
 #
 # You will have to replace "venus_get/_set" mqtt topic along the file to match the topic where your venus device publishes
@@ -11,7 +15,7 @@ mqtt:
   sensor:
     # The main device.
     - name: Serial
-      object_id: victron_serial # entity_id
+      # object_id: victron_serial # entity_id
       unique_id: victron_serial # internal id, used for device grouping
       # TODO
       # availability: &victron_availability
@@ -21,7 +25,7 @@ mqtt:
       #     payload_not_available: "disconnected"
       device: &victron_device_info
         identifiers: [victron_9090]
-        configuration_url: http://10.1.5.35
+        configuration_url: http://10.50.0.35
           # - topic: victron/announce/9090
           #   value_template: "{{ value_json['http'] }}"
         manufacturer: Victron
@@ -30,32 +34,32 @@ mqtt:
       value_template: "{{ value_json['value'] }}"
       icon: mdi:bolt
 
-    # Battery: You may have to adjust the device Id (here 278) to match the battery device in your system.
+    # Battery: You may have to adjust the device Id (here 288) to match the battery device in your system.
     - name: Battery Soc
-      unique_id: 431df9fb-ec03-4626-a3a5-ab7530d10d75
+      unique_id: victron_battery_soc
       device: *victron_device_info
       device_class: battery
       state_class: measurement
-      state_topic: "venus_get/battery/278/Soc"
+      state_topic: "venus_get/battery/288/Soc"
       value_template: "{{ value_json['value']|round(1) }}"
       unit_of_measurement: "%"
 
     - name: Battery power
-      unique_id: 6a6213f9-1b46-4500-9129-d0ad53810023
+      unique_id: victron_battery_power
       device: *victron_device_info
       device_class: power
       state_class: measurement
-      state_topic: "venus_get/battery/278/Dc/0/Power"
+      state_topic: "venus_get/battery/288/Dc/0/Power"
       value_template: "{{ value_json['value']|round(0) }}"
       unit_of_measurement: "W"
       icon: mdi:battery-charging
 
     - name: Battery power to
-      unique_id: 2722ccba-4163-11ed-b878-0242ac120002
+      unique_id: victron_battery_power_to
       device: *victron_device_info
       device_class: power
       state_class: measurement
-      state_topic: "venus_get/battery/278/Dc/0/Power"
+      state_topic: "venus_get/battery/288/Dc/0/Power"
       value_template: > 
         {% if value_json.value | is_defined and value_json.value > 0 %}
           {{ value_json.value|round(0) }}
@@ -66,11 +70,11 @@ mqtt:
       icon: mdi:battery-arrow-up
 
     - name: Battery power from
-      unique_id: 0328c870-4166-11ed-b878-0242ac120002
+      unique_id: victron_battery_power_from
       device: *victron_device_info
       device_class: power
       state_class: measurement
-      state_topic: "venus_get/battery/278/Dc/0/Power"
+      state_topic: "venus_get/battery/288/Dc/0/Power"
       value_template: > 
         {% if value_json.value | is_defined and value_json.value < 0 %}
           {{ value_json.value|round(0)|abs }}
@@ -81,60 +85,51 @@ mqtt:
       icon: mdi:battery-arrow-down
 
     - name: Battery total energy from
-      unique_id: 558ae5ce-41f3-473a-b8da-8212c8dcd50f
+      unique_id: victron_battery_total_energy_from
       device: *victron_device_info
       device_class: energy
       state_class: total_increasing
-      state_topic: "venus_get/battery/278/History/DischargedEnergy"
+      state_topic: "venus_get/battery/288/History/DischargedEnergy"
       value_template: "{{ value_json['value'] }}"
       unit_of_measurement: "kWh"
 
     - name: Battery total energy to
-      unique_id: 922b410e-5c6c-4d3f-b64a-5f0f1fd0aa2d
+      unique_id: victron_battery_total_energy_to
       device: *victron_device_info
       device_class: energy
       state_class: total_increasing
-      state_topic: "venus_get/battery/278/History/ChargedEnergy"
+      state_topic: "venus_get/battery/288/History/ChargedEnergy"
       value_template: "{{ value_json['value'] }}"
       unit_of_measurement: "kWh"
 
     - name: Battery voltage
-      unique_id: 37e8aaf1-a9c2-4e6a-a293-ff1c090cbf53
+      unique_id: victron_battery_voltage
       device: *victron_device_info
       device_class: voltage
       state_class: measurement 
-      state_topic: "venus_get/battery/278/Dc/0/Voltage"
+      state_topic: "venus_get/battery/288/Dc/0/Voltage"
       value_template: "{{ value_json['value']|round(1) }}"
       unit_of_measurement: "V"
 
     - name: Battery current
-      unique_id: 8ddb7070-cdc3-402c-814c-beea5527c84f
+      unique_id: victron_battery_current
       device: *victron_device_info
       device_class: current
       state_class: measurement 
-      state_topic: "venus_get/battery/278/Dc/0/Current"
+      state_topic: "venus_get/battery/288/Dc/0/Current"
       value_template: "{{ value_json['value']|round(1) }}"
       unit_of_measurement: "A"
 
     - name: Battery consumed Ah
-      unique_id: 8371bea9-3aa0-454a-9332-7cbeab464acb
+      unique_id: victron_battery_consumed_ah
       device: *victron_device_info
       state_class: measurement
       state_topic: "venus_get/battery/278/ConsumedAmphours"
       value_template: "{{ (value_json['value'] * -1)|round(1) }}"
       unit_of_measurement: "Ah"
 
-    - name: Battery Cell MaxVoltage
-      unique_id: 93487630-8e02-42d9-b2b0-f31a9ae09b78
-      device: *victron_device_info
-      device_class: voltage
-      state_class: measurement 
-      state_topic: "venus_get/battery/1024/System/MaxCellVoltage"
-      value_template: "{{ value_json['value'] }}"
-      unit_of_measurement: "V"
-
     - name: Battery Cell MinVoltage
-      unique_id: 3fe0691e-9e36-41f5-9f84-4810f90ca526
+      unique_id: victron_battery_cell_minvoltage
       device: *victron_device_info
       device_class: voltage
       state_class: measurement 
@@ -142,57 +137,189 @@ mqtt:
       value_template: "{{ value_json['value'] }}"
       unit_of_measurement: "V"
 
+    - name: Battery Cell MaxVoltage
+      unique_id: victron_battery_cell_maxvoltage
+      device: *victron_device_info
+      device_class: voltage
+      state_class: measurement 
+      state_topic: "venus_get/battery/1024/System/MaxCellVoltage"
+      value_template: "{{ value_json['value'] }}"
+      unit_of_measurement: "V"
+
 
     - name: Vebus alarms overload
-      unique_id: 888399d8-1ce0-4eed-8021-bb1af08bf508
+      unique_id: victron_vebus_alarms_overload
       device: *victron_device_info
-      state_topic: "venus_get/vebus/276/Alarms/Overload"
+      state_topic: "venus_get/vebus/292/Alarms/Overload"
       value_template: "{{ value_json['value'] }}"
       icon: mdi:alert
 
     - name: Vebus AcOut Power
-      unique_id: 5af161b4-59ed-471c-8031-16bde56b0172
+      unique_id: victron_vebus_acout_power
       device: *victron_device_info
       device_class: power
       state_class: measurement
-      state_topic: "venus_get/vebus/276/Ac/Out/P"
+      state_topic: "venus_get/vebus/292/Ac/Out/P"
+      value_template: "{{ value_json['value']|round(0) }}"
+      unit_of_measurement: "W"
+
+    
+    - name: DC Power
+      unique_id: victron_dc_power
+      device: *victron_device_info
+      availability:
+        - topic: "venus_get/system/0/Dc/System/Power"
+          value_template: "{{ value_json['value']|is_number }}"
+          payload_available: true
+          payload_not_available: false
+      device_class: power
+      state_class: measurement
+      state_topic: "venus_get/system/0/Dc/System/Power"
       value_template: "{{ value_json['value']|round(0) }}"
       unit_of_measurement: "W"
 
 
-    - name: SolarCharger power
-      unique_id: c333a67d-159a-47ad-a4e9-508b8fe6819e
+    - name: SolarCharger 1 power
+      unique_id: victron_solarcharger_1_power
       device: *victron_device_info
+      availability:
+        - topic: "venus_get/solarcharger/290/Yield/Power"
+          value_template: "{{ value_json['value']|is_number }}"
+          payload_available: true
+          payload_not_available: false
       device_class: power
       state_class: measurement
-      state_topic: "venus_get/solarcharger/277/Yield/Power"
+      state_topic: "venus_get/solarcharger/290/Yield/Power"
       value_template: "{{ value_json['value']|round(0) }}"
       unit_of_measurement: "W"
       icon: mdi:white-balance-sunny
 
-    - name: SolarCharger voltage
-      unique_id: bc511ae6-cd54-4d56-a6d6-533bafac6211
+    - name: SolarCharger 1 voltage
+      unique_id: victron_solarcharger_1_voltage
       device: *victron_device_info
       device_class: voltage
       state_class: measurement
-      state_topic: "venus_get/solarcharger/277/Pv/V"
+      state_topic: "venus_get/solarcharger/290/Pv/V"
       value_template: "{{ value_json['value'] }}"
       unit_of_measurement: "V"
       icon: mdi:white-balance-sunny
+
+    - name: SolarCharger 1 current
+      unique_id: victron_solarcharger_1_current
+      device: *victron_device_info
+      device_class: current
+      state_class: measurement
+      state_topic: "venus_get/solarcharger/290/Dc/0/Current"
+      value_template: "{{ value_json['value'] }}"
+      unit_of_measurement: "A"
+      icon: mdi:white-balance-sunny
  
-    - name: SolarCharger energy today
-      unique_id: a16247f5-a5dc-4b10-be21-9fcd29f5ff0e
+    - name: SolarCharger 1 energy today
+      unique_id: victron_solarcharger_1_energy_today
       device: *victron_device_info
       device_class: energy
       state_class: total_increasing
-      state_topic: "venus_get/solarcharger/277/History/Daily/0/Yield"
+      state_topic: "venus_get/solarcharger/290/History/Daily/0/Yield"
       value_template: "{{ value_json['value'] }}"
       unit_of_measurement: "kWh"
       icon: mdi:white-balance-sunny
 
-    - name: PvInverter Ac power
-      unique_id: 2655934b-7f14-44ff-a505-c75d07351d8c
+    - name: SolarCharger 2 power
+      unique_id: victron_solarcharger_2_power
       device: *victron_device_info
+      availability:
+        - topic: "venus_get/solarcharger/291/Yield/Power"
+          value_template: "{{ value_json['value']|is_number }}"
+          payload_available: true
+          payload_not_available: false
+      device_class: power
+      state_class: measurement
+      state_topic: "venus_get/solarcharger/291/Yield/Power"
+      value_template: "{{ value_json['value']|round(0) }}"
+      unit_of_measurement: "W"
+      icon: mdi:white-balance-sunny
+
+    - name: SolarCharger 2 voltage
+      unique_id: victron_solarcharger_2_voltage
+      device: *victron_device_info
+      device_class: voltage
+      state_class: measurement
+      state_topic: "venus_get/solarcharger/291/Pv/V"
+      value_template: "{{ value_json['value'] }}"
+      unit_of_measurement: "V"
+      icon: mdi:white-balance-sunny
+ 
+    - name: SolarCharger 2 current
+      unique_id: victron_solarcharger_2_current
+      device: *victron_device_info
+      device_class: current
+      state_class: measurement
+      state_topic: "venus_get/solarcharger/291/Dc/0/Current"
+      value_template: "{{ value_json['value'] }}"
+      unit_of_measurement: "A"
+      icon: mdi:white-balance-sunny
+
+    - name: SolarCharger 2 energy today
+      unique_id: victron_solarcharger_2_energy_today
+      device: *victron_device_info
+      device_class: energy
+      state_class: total_increasing
+      state_topic: "venus_get/solarcharger/291/History/Daily/0/Yield"
+      value_template: "{{ value_json['value'] }}"
+      unit_of_measurement: "kWh"
+      icon: mdi:white-balance-sunny
+
+    - name: PvInverter Dc1 power
+      unique_id: victron_pvinverter_dc1_power
+      device: *victron_device_info
+      availability:
+        - topic: solax/state
+          value_template: "{{ value_json['PowerDc1']|is_number }}"
+          payload_available: true
+          payload_not_available: false
+      device_class: power
+      state_class: measurement
+      state_topic: solax/state
+      value_template: "{{ value_json['PowerDc1']|round(0) }}"
+      unit_of_measurement: "W"
+      icon: mdi:white-balance-sunny
+
+    - name: PvInverter Dc1 voltage
+      unique_id: victron_pvinverter_dc1_voltage
+      device: *victron_device_info
+      availability:
+        - topic: solax/state
+          value_template: "{{ value_json['Vdc1']|is_number }}"
+          payload_available: true
+          payload_not_available: false
+      device_class: voltage
+      state_class: measurement
+      state_topic: solax/state
+      value_template: "{{ value_json['Vdc1']|round(1) }}"
+      unit_of_measurement: "V"
+
+    - name: PvInverter Dc1 current
+      unique_id: victron_pvinverter_dc1_current
+      device: *victron_device_info
+      availability:
+        - topic: solax/state
+          value_template: "{{ value_json['Idc1']|is_number }}"
+          payload_available: true
+          payload_not_available: false
+      device_class: current
+      state_class: measurement
+      state_topic: solax/state
+      value_template: "{{ value_json['Idc1']|round(1) }}"
+      unit_of_measurement: "A"
+
+    - name: PvInverter Ac power
+      unique_id: victron_pvinverter_ac_power
+      device: *victron_device_info
+      availability:
+        - topic: venus_get/pvinverter/20/Ac/L1/Power
+          value_template: "{{ value_json['value']|is_number }}"
+          payload_available: true
+          payload_not_available: false
       device_class: power
       state_class: measurement
       state_topic: "venus_get/pvinverter/20/Ac/L1/Power"
@@ -201,8 +328,13 @@ mqtt:
       icon: mdi:white-balance-sunny
 
     - name: PvInverter Ac voltage
-      unique_id: 965f545e-0887-44d4-861c-011fc0b3528d
+      unique_id: victron_pvinverter_ac_voltage
       device: *victron_device_info
+      availability:
+        - topic: venus_get/pvinverter/20/Ac/L1/Voltage
+          value_template: "{{ value_json['value']|is_number }}"
+          payload_available: true
+          payload_not_available: false
       device_class: voltage
       state_class: measurement
       state_topic: "venus_get/pvinverter/20/Ac/L1/Voltage"
@@ -210,8 +342,13 @@ mqtt:
       unit_of_measurement: "V"
 
     - name: PvInverter Ac current
-      unique_id: 935e3a42-106c-4875-93b0-43a228e53fed
+      unique_id: victron_pvinverter_ac_current
       device: *victron_device_info
+      availability:
+        - topic: venus_get/pvinverter/20/Ac/L1/Current
+          value_template: "{{ value_json['value']|is_number }}"
+          payload_available: true
+          payload_not_available: false
       device_class: current
       state_class: measurement
       state_topic: "venus_get/pvinverter/20/Ac/L1/Current"
@@ -219,7 +356,7 @@ mqtt:
       unit_of_measurement: "A"
       
     - name: PvInverter energy total
-      unique_id: 0ad0acfa-0c5e-4129-a476-349b5d289778
+      unique_id: victron_pvinverter_energy_total
       device: *victron_device_info
       device_class: energy
       state_class: total_increasing
@@ -229,7 +366,7 @@ mqtt:
       icon: mdi:white-balance-sunny
 
     - name: PvInverter power limit
-      unique_id: 2f58dee9-4c67-4a69-b26c-be48251ee6cb
+      unique_id: victron_pvinverter_power_limit
       device: *victron_device_info
       device_class: power
       state_class: measurement
@@ -239,7 +376,7 @@ mqtt:
 
 
     - name: Grid power
-      unique_id: 6ecc0462-2207-4b19-a00d-f3b6d8ac59f5
+      unique_id: victron_grid_power
       device: *victron_device_info
       device_class: power
       state_class: measurement
@@ -249,7 +386,7 @@ mqtt:
       icon: mdi:transmission-tower
 
     - name: Grid voltage
-      unique_id: 07a89b6d-4b7a-436f-ae99-84f1dd373595
+      unique_id: victron_grid_voltage
       device: *victron_device_info
       device_class: voltage
       state_class: measurement
@@ -258,16 +395,16 @@ mqtt:
       unit_of_measurement: "V"
 
     - name: Grid frequency
-      unique_id: 5c13f214-4bd7-4bbc-9c76-ccb9a1a5111a
+      unique_id: victron_grid_frequency
       device: *victron_device_info
       device_class: frequency
       state_class: measurement
-      state_topic: "venus_get/vebus/276/Ac/ActiveIn/L1/F"
+      state_topic: "venus_get/vebus/292/Ac/Out/L1/F"  #"venus_get/vebus/292/Ac/ActiveIn/L1/F"
       value_template: "{{ value_json['value'] | round(2) }}"
       unit_of_measurement: "Hz"
 
     - name: Grid power from
-      unique_id: 40a159a0-4167-11ed-b878-0242ac120002
+      unique_id: victron_grid_power_from
       device: *victron_device_info
       device_class: power
       state_class: measurement
@@ -282,7 +419,7 @@ mqtt:
       icon: mdi:transmission-tower-export
 
     - name: Grid power to
-      unique_id: 45dde9c4-4167-11ed-b878-0242ac120002
+      unique_id: victron_grid_power_to
       device: *victron_device_info
       device_class: power
       state_class: measurement
@@ -297,7 +434,7 @@ mqtt:
       icon: mdi:transmission-tower-import
  
     - name: Grid energy import
-      unique_id: 7f44aeb0-7439-43ec-9c47-6da845939578
+      unique_id: victron_grid_energy_import
       device: *victron_device_info
       icon: mdi:transmission-tower-export
       device_class: energy
@@ -307,7 +444,7 @@ mqtt:
       unit_of_measurement: "kWh"
 
     - name: Grid energy export
-      unique_id: 1d68972b-5d6a-49de-9cb3-8ef07d35df3a
+      unique_id: victron_grid_energy_export
       device: *victron_device_info
       icon: mdi:transmission-tower-import
       device_class: energy
@@ -321,7 +458,7 @@ mqtt:
     # This sensor, consumes data from your BMS battery.
     # Change 1024 to the actual device id of your battery.
     - name: Battery balancing
-      unique_id: a5c4f759-3e97-426a-aa32-c14f8c5b0094
+      unique_id: victron_battery_balancing
       device: *victron_device_info
       state_topic: "venus_get/battery/1024/Balancing"
       value_template: "{{ value_json['value'] }}"
@@ -330,19 +467,19 @@ mqtt:
       icon: mdi:scale-balance
 
     - name: Vebus AcIn1Available
-      unique_id: 85f3aa81-6bd1-4f00-964f-e8d49a0daa43
+      unique_id: victron_vebus_acin1available
       device: *victron_device_info
-      state_topic: "venus_get/vebus/276/Ac/State/AcIn1Available"
+      state_topic: "venus_get/vebus/292/Ac/State/AcIn1Available"
       value_template: "{{ value_json['value'] }}"
       payload_on: 1
       payload_off: 0
       icon: mdi:power-plug
 
 
-    - name: SolarCharger Relay0State
-      unique_id: 8bb9c1c7-cae4-4853-87a4-6e297efb8411
+    - name: SolarCharger 1 Relay0State
+      unique_id: victron_solarcharger_1_relay0state
       device: *victron_device_info
-      state_topic: "venus_get/solarcharger/277/Relay/0/State"
+      state_topic: "venus_get/solarcharger/290/Relay/0/State"
       value_template: "{{ value_json['value'] }}"
       payload_on: 1
       payload_off: 0
@@ -351,7 +488,7 @@ mqtt:
 
   number:
     - name: Settings GridSetpoint
-      unique_id: 780caff1-fdb3-43b5-90c9-df4fc092ccfa
+      unique_id: victron_settings_gridsetpoint
       device: *victron_device_info
       icon: mdi:scale-balance
       state_topic: "venus_get/settings/0/Settings/CGwacs/AcPowerSetPoint"
@@ -365,12 +502,12 @@ mqtt:
       mode: box
 
     - name: Settings GridCurrentLimit
-      unique_id: 6b6a2242-f9ee-4827-95d0-e72bb2f1369e
+      unique_id: victron_settings_gridcurrentlimit
       device: *victron_device_info
       icon: mdi:cog
-      state_topic: "venus_get/vebus/276/Ac/ActiveIn/CurrentLimit"
+      state_topic: "venus_get/vebus/292/Ac/ActiveIn/CurrentLimit"
       value_template: "{{ value_json['value']|round(0) }}"
-      command_topic: "venus_set/vebus/276/Ac/ActiveIn/CurrentLimit"
+      command_topic: "venus_set/vebus/292/Ac/ActiveIn/CurrentLimit"
       command_template: '{"value":{{ value }}}'
       unit_of_measurement: A
       min: 0
@@ -378,8 +515,22 @@ mqtt:
       step: 0.5
       mode: box
 
+    - name: Settings MaxDischargePower
+      unique_id: victron_settings_maxdischargepower
+      device: *victron_device_info
+      icon: mdi:cog
+      state_topic: "venus_get/settings/0/Settings/CGwacs/MaxDischargePower"
+      value_template: "{{ value_json['value']|round(0) }}"
+      command_topic: "venus_set/settings/0/Settings/CGwacs/MaxDischargePower"
+      command_template: '{"value":{{ value }}}'
+      unit_of_measurement: W
+      min: -1
+      max: 1000000
+      step: 1
+      mode: box
+
     - name: Settings GridMaxFeedin
-      unique_id: 742daf54-b11e-4364-abfb-fc91bc5b12a1
+      unique_id: victron_settings_gridmaxfeedin
       device: *victron_device_info
       icon: mdi:cog
       state_topic: "venus_get/settings/0/Settings/CGwacs/MaxFeedInPower"
@@ -393,7 +544,7 @@ mqtt:
       mode: box
 
     - name: Settings GridPeakShaving ImportLimit
-      unique_id: 5c90f507-f011-4a17-b32a-df8de83d36cb
+      unique_id: victron_settings_gridpeakshaving_importlimit
       device: *victron_device_info
       icon: mdi:cog
       state_topic: "venus_get/settings/0/Settings/CGwacs/AcInputLimit"
@@ -407,7 +558,7 @@ mqtt:
       mode: box
 
     - name: Settings GridPeakShaving ExportLimit
-      unique_id: f32df210-04c5-479f-9ec3-3107fd0c0fa9
+      unique_id: victron_settings_gridpeakshaving_exportlimit
       device: *victron_device_info
       icon: mdi:cog
       state_topic: "venus_get/settings/0/Settings/CGwacs/AcExportLimit"
@@ -422,7 +573,7 @@ mqtt:
 
 
     - name: Settings Battery MinSoc
-      unique_id: 4a0f535f-6753-4895-8a9d-9aaefd2b8dbb
+      unique_id: victron_settings_battery_minsoc
       device: *victron_device_info
       icon: mdi:battery-minus
       state_topic: "venus_get/settings/0/Settings/CGwacs/BatteryLife/MinimumSocLimit"
@@ -436,7 +587,7 @@ mqtt:
       mode: box
 
     - name: Settings Battery DVCCMaxVoltage
-      unique_id: a736b865-0e29-48fb-b4da-2eb5864d7955
+      unique_id: victron_settings_battery_dvccmaxvoltage
       device: *victron_device_info
       icon: mdi:battery-plus
       state_topic: "venus_get/settings/0/Settings/SystemSetup/MaxChargeVoltage"
@@ -450,7 +601,7 @@ mqtt:
       mode: box
 
     - name: Settings Battery DVCCMaxCurrent
-      unique_id: 899d8be0-b1b1-49d5-87bd-b39ec6bb1f77
+      unique_id: victron_settings_battery_dvccmaxcurrent
       device: *victron_device_info
       icon: mdi:battery-plus
       state_topic: "venus_get/settings/0/Settings/SystemSetup/MaxChargeCurrent"
@@ -465,12 +616,10 @@ mqtt:
 
   switch:
     - name: Settings feedin Dc
-      unique_id: c6c0e25f-a774-468e-8afb-e3bfce238778
+      unique_id: victron_settings_feedin_dc
       device: *victron_device_info
       icon: mdi:car-speed-limiter
       state_topic: "venus_get/settings/0/Settings/CGwacs/OvervoltageFeedIn"
-      # value_template: >
-      #     {"value": {{ value_json.value }}}
       value_template: "{{ value_json['value'] }}"
       command_topic: "venus_set/settings/0/Settings/CGwacs/OvervoltageFeedIn"
       state_on: 1
@@ -479,12 +628,10 @@ mqtt:
       payload_off: '{"value": 0}'
 
     - name: Settings feedin Ac
-      unique_id: f58e1a6a-dbf1-4704-b3b8-bf5eb9a5f4fb
+      unique_id: victron_settings_feedin_ac
       device: *victron_device_info
       icon: mdi:car-speed-limiter
       state_topic: "venus_get/settings/0/Settings/CGwacs/PreventFeedback"
-      # value_template: >
-      #     {"value": {{ value_json.value }}}
       value_template: "{{ value_json['value'] }}"
       command_topic: "venus_set/settings/0/Settings/CGwacs/PreventFeedback"
       state_on: 0
@@ -495,7 +642,7 @@ mqtt:
 
   select:
     - name: ESS State
-      unique_id: 1d41d4e3-e7df-4d15-ac8a-291bd19619a1
+      unique_id: victron_ess_state
       device: *victron_device_info
       # availability: *victron_availability
       icon: mdi:cog
@@ -514,18 +661,52 @@ mqtt:
         - Optimizado (Recarga)
         - Mantener
 
+    - name: Vebus Mode
+      unique_id: victron_vebus_mode
+      device: *victron_device_info
+      # availability: *victron_availability
+      icon: mdi:cog
+      state_topic: "venus_get/vebus/292/Mode"
+      value_template: >-
+        {% set values = { 0:'Apagado', 1:'Solo cargador', 2:'Solo inversor', 3:'Encendido'} %}
+        {{ values[value_json['value']] if value_json['value'] in values.keys() else 'Desconocido' }}
+      command_topic: "venus_set/vebus/292/Mode"
+      command_template: >-
+        {% set values = { 'Apagado':'0', 'Solo cargador':'1', 'Solo inversor':'2', 'Encendido':'3'} %}
+        {{ '{"value":'+values[value]+'}' if value in values.keys() else '3' }}
+      options:
+        - Desconocido
+        - Apagado
+        - Solo cargador
+        - Solo inversor
+        - Encendido
+
 template:
 
   - sensor:
 
-    - name: Victron PvSources total power
-      unique_id: 1a3ebadd-29d2-4f31-8833-e63efcbf0ddd
+    - name: Victron SolarCharger total power
+      unique_id: victron_solarcharger_total_power
       device_class: power
       state_class: measurement
       state: >
         {{ (
-          states('sensor.victron_solarcharger_power')|float(0) 
-          + states('sensor.victron_pvinverter_ac_power')|float(0)
+          states('sensor.victron_solarcharger_1_power')|default(0)|float(0) 
+          + states('sensor.victron_solarcharger_2_power')|default(0)|float(0) 
+          )|round(0)
+        }}
+      unit_of_measurement: "W"
+      icon: mdi:white-balance-sunny
+
+    - name: Victron PvSources total power
+      unique_id: victron_pvsources_total_power
+      device_class: power
+      state_class: measurement
+      state: >
+        {{ (
+          states('sensor.victron_solarcharger_1_power')|default(0)|float(0) 
+          + states('sensor.victron_solarcharger_2_power')|default(0)|float(0) 
+          + states('sensor.victron_pvinverter_ac_power')|default(0)|float(0)
           )|round(0)
         }}
       unit_of_measurement: "W"
@@ -534,7 +715,7 @@ template:
     # Groups: Storage
 
     - name: Victron Battery Cell DiffVoltage
-      unique_id: 0a2a5c00-ff02-4bb6-921e-c126130dec4f
+      unique_id: victron_battery_cell_diffvoltage
       device_class: voltage
       state_class: measurement
       state: >
@@ -586,15 +767,31 @@ homeassistant:
     sensor.victron_vebus_alarms_overload:
       friendly_name: 'Alarma de sobrecarga'
 
-    sensor.victron_solarcharger_power:
-      friendly_name: 'Potencia cargador solar'
-    sensor.victron_solarcharger_voltage:
-      friendly_name: 'Voltaje cargador solar'
-    sensor.victron_solarcharger_energy_today:
-      friendly_name: 'Producción diaria cargador solar'
-    binary_sensor.victron_solarcharger_relay0state:
+    sensor.victron_solarcharger_1_power:
+      friendly_name: 'Potencia cargador solar 1'
+    sensor.victron_solarcharger_1_voltage:
+      friendly_name: 'Voltaje cargador solar 1'
+    sensor.victron_solarcharger_1_current:
+      friendly_name: 'Intensidad cargador solar 1'
+    sensor.victron_solarcharger_1_energy_today:
+      friendly_name: 'Producción diaria cargador solar 1'
+    binary_sensor.victron_solarcharger_1_relay0state:
       friendly_name: 'Luz solar'
+    sensor.victron_solarcharger_2_power:
+      friendly_name: 'Potencia cargador solar 2'
+    sensor.victron_solarcharger_2_voltage:
+      friendly_name: 'Voltaje cargador solar 2'
+    sensor.victron_solarcharger_2_current:
+      friendly_name: 'Intensidad cargador solar 2'
+    sensor.victron_solarcharger_2_energy_today:
+      friendly_name: 'Producción diaria cargador solar 2'
     
+    sensor.victron_pvinverter_dc1_power:
+      friendly_name: 'Potencia Dc1 inversor solar'
+    sensor.victron_pvinverter_dc1_voltage:
+      friendly_name: 'Voltaje Dc1 inversor solar'
+    sensor.victron_pvinverter_dc1_current:
+      friendly_name: 'Corriente Dc1 inversor solar'
     sensor.victron_pvinverter_ac_power:
       friendly_name: 'Potencia inversor solar'
     sensor.victron_pvinverter_ac_voltage:
@@ -632,6 +829,8 @@ homeassistant:
       friendly_name: 'Setpoint de red'
     number.victron_settings_gridcurrentlimit:
       friendly_name: 'Pot. de red'
+    number.victron_settings_maxdischargepower:
+      friendly_name: 'Max.Pot. Inversor'
     number.victron_settings_gridmaxfeedin:
       friendly_name: 'Max. Exportación'
     number.victron_settings_gridpeakshaving_importlimit:

@@ -1,0 +1,187 @@
+views:
+  - type: sections
+    max_columns: 4
+    dense_section_placement: false
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: SISTEMA
+            heading_style: title
+          - type: tile
+            entity: number.victron_settings_gridcurrentlimit
+          - type: heading
+            heading: ESS
+            heading_style: title
+          - type: tile
+            entity: select.victron_ess_state
+          - type: tile
+            entity: number.victron_settings_maxdischargepower
+          - type: tile
+            entity: number.victron_settings_battery_minsoc
+          - type: tile
+            entity: number.victron_settings_gridsetpoint
+          - type: heading
+            icon: mdi:transmission-tower-import
+            heading: Exportación
+            heading_style: title
+          - type: tile
+            entity: switch.victron_settings_feedin_ac
+          - type: tile
+            entity: switch.victron_settings_feedin_dc
+          - type: tile
+            entity: number.victron_settings_gridmaxfeedin
+          - type: heading
+            icon: ''
+            heading: Recorte de picos
+            heading_style: title
+          - type: tile
+            entity: number.victron_settings_gridpeakshaving_importlimit
+          - type: tile
+            entity: number.victron_settings_gridpeakshaving_exportlimit
+          - type: heading
+            heading: DVCC
+            heading_style: title
+            badges: []
+          - type: tile
+            entity: number.victron_settings_battery_dvccmaxcurrent
+          - type: tile
+            entity: number.victron_settings_battery_dvccmaxvoltage
+      - type: grid
+        cards:
+          - cardstyle: compact
+            wide: false
+            large_font: false
+            show_solar: true
+            show_battery: true
+            show_grid: true
+            center_no_grid: true
+            card_height: 100%
+            card_width: 80%
+            decimal_places: 2
+            decimal_places_energy: 1
+            dynamic_line_width: true
+            max_line_width: 4
+            min_line_width: 1
+            inverter:
+              modern: false
+              colour: '#9e9e9e'
+              autarky: 'no'
+              model: victron
+              auto_scale: false
+              three_phase: false
+              navigate: ''
+              label_autarky: ''
+              label_ratio: ''
+            battery:
+              energy: 58850
+              shutdown_soc: number.victron_settings_battery_minsoc
+              show_daily: false
+              count: 1
+              shutdown_soc_offgrid: 0
+              dynamic_colour: true
+              show_remaining_energy: true
+              auto_scale: false
+              invert_power: false
+              show_absolute: false
+              linear_gradient: true
+              animate: true
+              remaining_energy_to_shutdown: false
+              invert_flow: true
+            battery2:
+              energy: 0
+              shutdown_soc: 20
+              soc_end_of_charge: 100
+              invert_power: false
+              hide_soc: false
+              colour: '#ffc0cb'
+              show_remaining_energy: true
+              remaining_energy_to_shutdown: false
+              show_absolute: false
+              auto_scale: true
+              dynamic_colour: true
+              linear_gradient: true
+              animate: true
+              path_threshold: 100
+              navigate: ''
+              invert_flow: false
+            solar:
+              show_daily: true
+              mppts: 3
+              pv1_name: Sur 1
+              pv2_name: Sur 2
+              auto_scale: false
+              dynamic_colour: true
+              pv1_max_power: 4800
+              pv2_max_power: 1000
+              pv3_name: Este
+              pv3_max_power: 5000
+            load:
+              show_daily: false
+              essential_name: Críticas
+              additional_loads: 2
+              load1_name: Aerotermia
+              load1_icon: mdi:heat-pump
+              load2_name: EV
+              load2_icon: mdi:car
+              load2_switch: switch.openevse_toggle
+              dynamic_colour: false
+              dynamic_icon: false
+              invert_load: false
+            grid:
+              show_daily_buy: true
+              show_daily_sell: true
+              show_nonessential: true
+              auto_scale: false
+              label_daily_grid_buy: COMPRA
+              label_daily_grid_sell: VENTA
+              grid_name: ' '
+            type: custom:sunsynk-power-flow-card
+            entities:
+              use_timer_248: switch.sunsynk_toggle_system_timer
+              priority_load_243: switch.sunsynk_toggle_priority_load
+              inverter_voltage_154: sensor.victron_grid_voltage
+              load_frequency_192: sensor.victron_grid_frequency
+              inverter_current_164: sensor.sunsynk_inverter_current
+              inverter_power_175: sensor.victron_vebus_acout_power
+              grid_connected_status_194: binary_sensor.victron_vebus_acin1available
+              inverter_status_59: select.victron_ess_state
+              day_battery_charge_70: sensor.sunsynk_day_battery_charge
+              day_battery_discharge_71: sensor.sunsynk_day_battery_discharge
+              battery_voltage_183: sensor.victron_battery_voltage
+              battery_soc_184: sensor.victron_battery_soc
+              battery_power_190: sensor.victron_battery_power
+              battery_current_191: sensor.victron_battery_current
+              grid_power_169: sensor.sunsynk_grid_power
+              day_grid_import_76: sensor.energy_acsources_grid_import_energy_today
+              day_grid_export_77: sensor.energy_acsources_grid_export_energy_today
+              grid_ct_power_172: sensor.victron_grid_power
+              day_load_energy_84: sensor.sunsynk_day_load_energy
+              essential_power: sensor.energy_acloads_critical_power
+              nonessential_power: none
+              aux_power_166: sensor.sunsynk_aux_power
+              day_pv_energy_108: sensor.energy_pvsources_total_energytoday
+              pv1_power_186: sensor.victron_solarcharger_1_power
+              pv2_power_187: sensor.victron_solarcharger_2_power
+              pv1_voltage_109: sensor.victron_solarcharger_1_voltage
+              pv1_current_110: sensor.victron_solarcharger_1_current
+              pv2_voltage_111: sensor.victron_solarcharger_2_voltage
+              pv2_current_112: sensor.victron_solarcharger_2_current
+              grid_voltage: sensor.victron_grid_voltage
+              non_essential_load1: sensor.energy_acloads_ev_power
+              energy_cost_buy: sensor.energy_grid_prices_import
+              energy_cost_sell: sensor.energy_grid_prices_export
+              pv3_power_188: sensor.victron_pvinverter_ac_power
+              pv_total: sensor.victron_pvsources_total_power
+              total_pv_generation: sensor.energy_pvsources_total_energytoday
+              remaining_solar: sensor.energy_pvsources_total_energy_est_today
+              environment_temp: sensor.garden_back_thp_temperature
+              battery_rated_capacity: number.energy_settings_battery_capacity
+              essential_load1: sensor.energy_acloads_heatpump_power
+              essential_load2: sensor.energy_acloads_ev_power
+              pv3_current_114: sensor.victron_pvinverter_dc1_current
+              pv3_voltage_113: sensor.victron_pvinverter_dc1_voltage
+            grid_options:
+              columns: full
+        column_span: 3
+    cards: []
