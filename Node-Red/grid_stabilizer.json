@@ -1,0 +1,441 @@
+[
+    {
+        "id": "7362584b235a0f78",
+        "type": "function",
+        "z": "456133deec6d609f",
+        "name": "Calculate",
+        "func": "const debug = global.get(\"settings.system.debug\") || false;\n\nif (!(global.get(\"settings.automations.GridStabilizer.Enabled\") || false)) return;\n\nconst target = global.get(\"settings.automations.GridStabilizer.Target\") || 0;\nconst setpoint = global.get(\"settings.victron.GridSetpoint\");\n\n// Matriz de valores\n// Se puede expandir como se desee.\n// Se podría también usar un PID, pero el flow sería algo más complicado.\nconst map = [\n    { \"c\": 300, \"s\": -100 },\n    { \"c\": 120, \"s\": -30 },\n    { \"c\": 30, \"s\": -20 },\n    { \"c\": 15, \"s\": -10 },\n    { \"c\": 0, \"s\": 0 },\n    { \"c\": -15, \"s\": 10 },\n    { \"c\": -30, \"s\": 20 },\n    { \"c\": -120, \"s\": 30 },\n    { \"c\": -300, \"s\": 100 }\n];\n////////////////////////////\n\nconst grid = msg.payload;\nconst delta = grid - target;\n\n// Yo aquí añadiría si el desvío es muy bajo, no hacer nada,\n// aunque también se puede conseguir ajustando la zona central de la matriz de arriba.\n\n// Activar y descativar según modo de red\n// O si realmente se desea vertido (setpoint original != 0)\n\n// node.warn(c);\n// node.warn(map);\n\nconst a = map.filter(p => delta >= p.c)[0] || null;\nconst b = map.filter(p => delta < p.c).reverse()[0] || null;\n\n// node.warn(a);\n// node.warn(b);\n\nvar c = 0;\n\nconst fill = msg.payload == setpoint ? \"green\" : \"blue\";\nconst shape = (context.get(\"shape\") || \"dot\") == \"dot\" ? \"ring\" : \"dot\";\ncontext.set(\"shape\", shape);\n\nif (a == null || b == null || a == b) {\n    if (a != null) c = a.s;\n    else if (b != null) c = b.s;\n    msg.payload = Math.round((setpoint + c) / 10) * 10;\n    if (debug)\n        node.status({ fill: fill, shape: shape, text: \"grid: \" + grid + \" => \" + setpoint + \" + \" + c + \" = \" + msg.payload });\n} else {\n    c = Math.round(((delta - a.c) / (b.c - a.c) * (b.s - a.s)) + a.s);\n    msg.payload = Math.round((setpoint + c) / 10) * 10;\n    if (debug)\n        node.status({ fill: fill, shape: shape, text: \"grid: \" + grid + \", delta: \" + delta + \", c: \" + c + ', in: ' + b.c + \"-\" + a.c + ', out: ' + b.s + \"-\" + a.s + \", sp: \" + msg.payload });\n}\n\nif (msg.payload > (msg.target + 5000)) msg.payload = msg.target + 5000;\nif (msg.payload < (msg.target - 5000)) msg.payload = msg.target - 5000;\n\nif (!debug)\n    node.status({ fill: fill, shape: shape, text: msg.payload });\n\nreturn { source: 'Auto_GridStabilizer', payload: msg.payload };",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 840,
+        "y": 520,
+        "wires": [
+            [
+                "b38c5e9d4b4a476d",
+                "b722cc81f1ef15b2"
+            ]
+        ]
+    },
+    {
+        "id": "8a1cbde4c7d07d82",
+        "type": "catch",
+        "z": "456133deec6d609f",
+        "name": "",
+        "scope": null,
+        "uncaught": false,
+        "x": 980,
+        "y": 380,
+        "wires": [
+            [
+                "200c9aa1630eb426"
+            ]
+        ]
+    },
+    {
+        "id": "200c9aa1630eb426",
+        "type": "debug",
+        "z": "456133deec6d609f",
+        "name": "debug 7",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1140,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "cb13e842583bd7d3",
+        "type": "debug",
+        "z": "456133deec6d609f",
+        "name": "Grid Avg",
+        "active": true,
+        "tosidebar": false,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 760,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "966b664f0e1ef11c",
+        "type": "link in",
+        "z": "456133deec6d609f",
+        "name": "link in 1",
+        "links": [
+            "a19f2ee4443acc95",
+            "56baf7f996a1dc96"
+        ],
+        "x": 315,
+        "y": 580,
+        "wires": [
+            [
+                "521192d4142059ed"
+            ]
+        ]
+    },
+    {
+        "id": "a052cad8e08b891b",
+        "type": "rate-avg",
+        "z": "456133deec6d609f",
+        "name": "Avg 15s",
+        "windowtype": "time",
+        "timewindow": "15",
+        "timeunits": "seconds",
+        "countwindow": "10",
+        "round": "0",
+        "x": 620,
+        "y": 520,
+        "wires": [
+            [
+                "cb13e842583bd7d3",
+                "7362584b235a0f78"
+            ]
+        ]
+    },
+    {
+        "id": "11e57f3a53cab2e1",
+        "type": "server-state-changed",
+        "z": "456133deec6d609f",
+        "name": "Enabled",
+        "server": "f4da2df5deda160c",
+        "version": 6,
+        "outputs": 1,
+        "exposeAsEntityConfig": "",
+        "entities": {
+            "entity": [
+                "input_boolean.energy_settings_grid_setpointstabilizer"
+            ],
+            "substring": [],
+            "regex": []
+        },
+        "outputInitially": true,
+        "stateType": "habool",
+        "ifState": "",
+        "ifStateType": "str",
+        "ifStateOperator": "is",
+        "outputOnlyOnStateChange": true,
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "ignorePrevStateNull": false,
+        "ignorePrevStateUnknown": false,
+        "ignorePrevStateUnavailable": false,
+        "ignoreCurrentStateUnknown": false,
+        "ignoreCurrentStateUnavailable": false,
+        "outputProperties": [
+            {
+                "property": "settings.automations.GridStabilizer.Enabled",
+                "propertyType": "global",
+                "value": "",
+                "valueType": "entityState"
+            },
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entityState"
+            }
+        ],
+        "x": 300,
+        "y": 380,
+        "wires": [
+            [
+                "a2c3725270742bd8"
+            ]
+        ]
+    },
+    {
+        "id": "a2c3725270742bd8",
+        "type": "switch",
+        "z": "456133deec6d609f",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 480,
+        "y": 380,
+        "wires": [
+            [
+                "1c60a7bb56c88517"
+            ],
+            [
+                "4bfded459c9bb906"
+            ]
+        ]
+    },
+    {
+        "id": "4bfded459c9bb906",
+        "type": "change",
+        "z": "456133deec6d609f",
+        "name": "Restore Setpoint",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "settings.automations.GridStabilizer.Target",
+                "tot": "global"
+            },
+            {
+                "t": "set",
+                "p": "source",
+                "pt": "msg",
+                "to": "Auto_GridStabilizer",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 690,
+        "y": 400,
+        "wires": [
+            [
+                "b38c5e9d4b4a476d",
+                "b722cc81f1ef15b2"
+            ]
+        ]
+    },
+    {
+        "id": "b38c5e9d4b4a476d",
+        "type": "link out",
+        "z": "456133deec6d609f",
+        "name": "out_ESS_GridSetpoint",
+        "mode": "link",
+        "links": [
+            "7fdb2fce4a91d1c8"
+        ],
+        "x": 1215,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "b722cc81f1ef15b2",
+        "type": "debug",
+        "z": "456133deec6d609f",
+        "name": "Applied",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 1040,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "888d1e2d52fb4990",
+        "type": "ha-number",
+        "z": "456133deec6d609f",
+        "name": "Target setpoint",
+        "version": 1,
+        "debugenabled": false,
+        "inputs": 0,
+        "outputs": 1,
+        "entityConfig": "483d21d60b63a308",
+        "exposeAsEntityConfig": "",
+        "mode": "listen",
+        "value": "payload",
+        "valueType": "msg",
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "value"
+            },
+            {
+                "property": "settings.automations.GridStabilizer.Target",
+                "propertyType": "global",
+                "value": "",
+                "valueType": "value"
+            },
+            {
+                "property": "previousValue",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "previousValue"
+            }
+        ],
+        "x": 320,
+        "y": 440,
+        "wires": [
+            [
+                "f34481cb3be5f667"
+            ]
+        ]
+    },
+    {
+        "id": "f34481cb3be5f667",
+        "type": "debug",
+        "z": "456133deec6d609f",
+        "name": "Value",
+        "active": true,
+        "tosidebar": false,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 490,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "521192d4142059ed",
+        "type": "function",
+        "z": "456133deec6d609f",
+        "name": "Active ?",
+        "func": "const isEnabled = global.get(\"settings.automations.GridStabilizer.Enabled\");\nconst isIBVEVBInactive = global.get(\"settings.automations.ibvebv.mode\") == 0 || global.get(\"settings.automations.ibvebv.Sleeping\") == true;\nconst isScheduledChargeActive = global.get(\"victron.status.ScheduledCharge.Active\");\nconst isBatteryLow = global.get(\"storage.battery.soc\") <= global.get(\"settings.battery.minsoc\");\n\n// $globalContext(\"settings.automations.GridStabilizer.Enabled\") = true\n// and ($globalContext(\"settings.automations.ibvebv.mode\") = 0 or $globalContext(\"settings.automations.ibvebv.Sleeping\") = true)\n// and $globalContext(\"victron.status.ScheduledCharge.Active\") = 0\nconst active = isEnabled && isIBVEVBInactive && !isScheduledChargeActive && !isBatteryLow;\nconst lastActive = flow.get(\"Active\");\n\n// node.warn({lastActive: lastActive, active: active});\n\nif (lastActive && !active)\n    node.send([null, { payload: global.get(\"settings.automations.GridStabilizer.Target\") || 0 }]);\n\nflow.set(\"Active\", active);\nnode.status({ fill: active ? \"green\" : \"gray\", shape: \"dot\", text: active });\n\nif (active) return [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 580,
+        "wires": [
+            [
+                "a052cad8e08b891b",
+                "f0e441a7f246478d"
+            ],
+            [
+                "b38c5e9d4b4a476d",
+                "9b54abb3a426ce85",
+                "b722cc81f1ef15b2"
+            ]
+        ]
+    },
+    {
+        "id": "9b54abb3a426ce85",
+        "type": "debug",
+        "z": "456133deec6d609f",
+        "name": "Restored setpoint",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 610,
+        "y": 620,
+        "wires": []
+    },
+    {
+        "id": "f4da2df5deda160c",
+        "type": "server",
+        "name": "Home Assistant",
+        "version": 5,
+        "addon": false,
+        "rejectUnauthorizedCerts": true,
+        "ha_boolean": "y|yes|true|on|home|open",
+        "connectionDelay": true,
+        "cacheJson": true,
+        "heartbeat": true,
+        "heartbeatInterval": "30",
+        "areaSelector": "friendlyName",
+        "deviceSelector": "friendlyName",
+        "entitySelector": "friendlyName",
+        "statusSeparator": "at: ",
+        "statusYear": "hidden",
+        "statusMonth": "2-digit",
+        "statusDay": "2-digit",
+        "statusHourCycle": "h23",
+        "statusTimeFormat": "h:m:s",
+        "enableGlobalContextStore": true
+    },
+    {
+        "id": "483d21d60b63a308",
+        "type": "ha-entity-config",
+        "server": "f4da2df5deda160c",
+        "deviceConfig": "5232363dfb05aa46",
+        "name": "energy_program_gridstabilizer_target",
+        "version": "6",
+        "entityType": "number",
+        "haConfig": [
+            {
+                "property": "name",
+                "value": "Target setpoint"
+            },
+            {
+                "property": "icon",
+                "value": "mdi:transmission-tower"
+            },
+            {
+                "property": "entity_picture",
+                "value": ""
+            },
+            {
+                "property": "entity_category",
+                "value": ""
+            },
+            {
+                "property": "device_class",
+                "value": ""
+            },
+            {
+                "property": "unit_of_measurement",
+                "value": "W"
+            },
+            {
+                "property": "min_value",
+                "value": -7000
+            },
+            {
+                "property": "max_value",
+                "value": 7000
+            },
+            {
+                "property": "step_value",
+                "value": 1
+            },
+            {
+                "property": "mode",
+                "value": "box"
+            }
+        ],
+        "resend": false,
+        "debugEnabled": false
+    },
+    {
+        "id": "5232363dfb05aa46",
+        "type": "ha-device-config",
+        "name": "energy_program_gridstabilizer_target",
+        "hwVersion": "",
+        "manufacturer": "Node-RED",
+        "model": "",
+        "swVersion": ""
+    }
+]
