@@ -1,0 +1,259 @@
+[
+    {
+        "id": "ee34683e751e8221",
+        "type": "comment",
+        "z": "c5fcdc7f2502a308",
+        "name": "Serial request",
+        "info": "",
+        "x": 150,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "66240475699d21f7",
+        "type": "inject",
+        "z": "c5fcdc7f2502a308",
+        "name": "trigger",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "[]",
+        "payloadType": "bin",
+        "x": 140,
+        "y": 200,
+        "wires": [
+            [
+                "0177aa7fd0a231f2"
+            ]
+        ]
+    },
+    {
+        "id": "0177aa7fd0a231f2",
+        "type": "function",
+        "z": "c5fcdc7f2502a308",
+        "name": "Request",
+        "func": "//msg.payload = Buffer.from([0x55, 0xaa, 0x01, 0xff, 0x00, 0x00, 0xff])\n//msg.payload = Buffer.from([0xdd, 0xa5, 0x03, 0x00, 0xff, 0xfd , 0x77])\n\n// JKBMS Dump all registers:\n// 4E 57 00 13 00 00 00 00 06 03 00 00 00 00 00 00 68 00 00 01 29\nmsg = {\n    payload: Buffer.from([0x4E, 0x57, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00, 0x01, 0x29]),\n    timeout: 10000\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 200,
+        "wires": [
+            [
+                "1551ebaab12b777e",
+                "40da159e1e878d1b",
+                "d4ac58a2c2815699",
+                "d92b33d30a7717b6",
+                "7a86c33153364fbd"
+            ]
+        ]
+    },
+    {
+        "id": "d92b33d30a7717b6",
+        "type": "serial request",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "serial": "a04da0a5a6d7777a",
+        "x": 590,
+        "y": 200,
+        "wires": [
+            [
+                "5a9728861aea2322"
+            ]
+        ]
+    },
+    {
+        "id": "5a9728861aea2322",
+        "type": "function",
+        "z": "c5fcdc7f2502a308",
+        "name": "parse buffer",
+        "func": "function chksum(buffer, len) {\n    var checksum = 0;\n    for (let ii = 0; ii < len; ii++) {\n        checksum = checksum + buffer[ii];\n    }\n    return checksum;\n}\n\nconst buffer = msg.payload;\n\nconst jk_get_16bit = (i) => {\n    return (buffer[i] << 8) | buffer[i + 1];\n};\n\nconst jk_get_32bit = (i) => {\n    return ((jk_get_16bit(i) << 16) | jk_get_16bit(i + 2)) >>> 0;\n};\n\nfunction format_total_runtime(value) {\n    let seconds = value >>> 0; // fuerza uint32\n\n    const years = Math.floor(seconds / (24 * 3600 * 365));\n    seconds = seconds % (24 * 3600 * 365);\n\n    const days = Math.floor(seconds / (24 * 3600));\n    seconds = seconds % (24 * 3600);\n\n    const hours = Math.floor(seconds / 3600);\n\n    return (years ? years + \"y \" : \"\") +\n        (days ? days + \"d \" : \"\") +\n        (hours ? hours + \"h\" : \"\");\n}\n\nif (buffer[0] != 0x4E || buffer[1] != 0x57)\n    node.warn('Invalid header')\n\nmsg.jkbms = {};\nmsg.jkbms.data_len = buffer[2] << 8 | buffer[2 + 1] << 0;\n// msg.jkbms.function = buffer[8];\nmsg.jkbms.computed_crc = chksum(buffer, msg.jkbms.data_len);\nmsg.jkbms.remote_crc = buffer[msg.jkbms.data_len] << 8 | buffer[msg.jkbms.data_len + 1] << 0;\n\nif (msg.jkbms.computed_crc != msg.jkbms.remote_crc)\n    node.warn('JkModbus CRC Check failed!');\n\nvar output = {\n    Serial: \"\",\n    Dc: {\n        Power: null,\n        Voltage: null,\n        Current: null,\n        Temperature: null,\n    },\n    InstalledCapacity: null,\n    RemainingCapacity: null,\n    Capacity: null,\n    ConsumedAmphours: null,\n    Soc: null,\n    TimeToGo: null,\n    Balancing: 0,\n    Alarms: {},\n    Info: {},\n    History: {},\n    System: {\n        NrOfCellsPerBattery: 0,\n        MinCellVoltage: 100.0,\n        MinVoltageCellId: \"\",\n        MaxCellVoltage: -100.0,\n        MaxVoltageCellId: \"\",\n        AverageCellVoltage: 0.0\n    },\n    Voltages: {},\n    Balances: {},\n    Io: {}\n};\n\n// Status request\n// -> 0x4E 0x57 0x00 0x13 0x00 0x00 0x00 0x00 0x06 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x68 0x00 0x00 0x01 0x29\n//\n// Status response\n// <- 0x4E 0x57 0x01 0x1B 0x00 0x00 0x00 0x00 0x06 0x00 0x01: Header\n//\n// *Data*\n//\n// Address Content: Description      Decoded content                         Coeff./Unit\n// 0x79: Individual Cell voltage\n// 0x2A: Cell count               42 / 3 bytes = 14 cells\n// 0x01 0x0E 0xED: Cell 1         3821 * 0.001 = 3.821V                        0.001 V\n// 0x02 0x0E 0xFA: Cell 2         3834 * 0.001 = 3.834V                        0.001 V\n// 0x03 0x0E 0xF7: Cell 3         3831 * 0.001 = 3.831V                        0.001 V\n// 0x04 0x0E 0xEC: Cell 4         ...                                          0.001 V\n// 0x05 0x0E 0xF8: Cell 5         ...                                          0.001 V\n// 0x06 0x0E 0xFA: Cell 6         ...                                          0.001 V\n// 0x07 0x0E 0xF1: Cell 7         ...                                          0.001 V\n// 0x08 0x0E 0xF8: Cell 8         ...                                          0.001 V\n// 0x09 0x0E 0xE3: Cell 9         ...                                          0.001 V\n// 0x0A 0x0E 0xFA: Cell 10        ...                                          0.001 V\n// 0x0B 0x0E 0xF1: Cell 11        ...                                          0.001 V\n// 0x0C 0x0E 0xFB: Cell 12        ...                                          0.001 V\n// 0x0D 0x0E 0xFB: Cell 13        ...                                          0.001 V\n// 0x0E 0x0E 0xF2: Cell 14        3826 * 0.001 = 3.826V                        0.001 V\n\n// Cell voltages\nlet cellbase = 11 + 1;\n\noutput.System.NrOfCellsPerBattery = buffer[cellbase] / 3;\n\nfor (let cell = 1; cell <= output.System.NrOfCellsPerBattery; cell++) {\n    var cellVoltage = (buffer[cellbase + cell * 3 - 1] << 8 | buffer[cellbase + cell * 3] << 0) / 1000;\n    output.System.AverageCellVoltage += cellVoltage;\n\n    if (cellVoltage < output.System.MinCellVoltage) {\n        output.System.MinCellVoltage = cellVoltage;\n        output.System.MinVoltageCellId = \"C\" + cell;\n    }\n\n    if (cellVoltage > output.System.MaxCellVoltage) {\n        output.System.MaxCellVoltage = cellVoltage;\n        output.System.MaxVoltageCellId = \"C\" + cell;\n    }\n\n    output.Voltages['Cell' + cell] = cellVoltage;\n}\noutput.System.AverageCellVoltage = Math.round((output.System.AverageCellVoltage / output.System.NrOfCellsPerBattery) * 1000) / 1000;\noutput.System.DiffCellVoltage = Math.round((output.System.MaxCellVoltage - output.System.MinCellVoltage) * 1000) / 1000;\n\n\nconst cellByteCount = 11 + output.System.NrOfCellsPerBattery * 3;\nmsg.jkbms.cellByteCount = cellByteCount;\n\n// UniqueIdentifier\nif (buffer[cellByteCount + 209 - 1] != 0x61)\n    node.warn('UniqueIdentifier marker incorrect!');\n// msg.payload = buffer.slice(cellByteCount + 209, cellByteCount + 209 + 10);\n\noutput.Serial = buffer\n    .toString('utf8', cellByteCount + 209, cellByteCount + 209 + 10)\n    .replace(/[^\\x20-\\x7E]/g, '');\n\nconst offset = 11 + buffer[11 + 1] + 3;\n\n// 0x80 0x00 0x1D: Read power tube temperature                 29°C                      1.0 °C\n// --->  99 = 99°C, 100 = 100°C, 101 = -1°C, 140 = -40°C\nconst rawMOSTemp = jk_get_16bit(offset + 3 * 0);\noutput.System.MOSTemperature = rawMOSTemp < 99 ? rawMOSTemp : (100 - rawMOSTemp);\n\n// 0x81 0x00 0x1E: Read the temperature in the battery box     30°C                      1.0 °C\noutput.System.Temperature1 = Math.round(jk_get_16bit(offset + 3 * 1) * 10) / 10;\n\n// 0x82 0x00 0x1C: Read battery temperature                    28°C                      1.0 °C\noutput.System.Temperature2 = Math.round(jk_get_16bit(offset + 3 * 2) * 10) / 10;\n\n// TODO: Get one closest to limits (Ex 0 and 50)\noutput.Dc.Temperature = output.System.Temperature1;\n\n// 0x83 0x14 0xEF: Total battery voltage                       5359 * 0.01 = 53.59V      0.01 V\noutput.Dc.Voltage = jk_get_16bit(offset + 3 * 3) * 0.01;\n\n// 0x84 0x80 0xD0: Current data                                32976                     0.01 A\nvar rawCurrent = jk_get_16bit(offset + 3 * 4);\nlet CURRENT_ZERO_CONSTANT = 32768\nif (rawCurrent < CURRENT_ZERO_CONSTANT)\n    output.Dc.Current = rawCurrent / -100;\nelse\n    output.Dc.Current = (rawCurrent - CURRENT_ZERO_CONSTANT) / 100;\n\n// Power\noutput.Dc.Power = output.Dc.Current * output.Dc.Voltage;\n\n// 0x85 0x0F: Battery remaining capacity                       15 %\noutput.Soc = buffer[offset + 3 * 5];\n\n// 0x86 0x02: Number of battery temperature sensors             2                        1.0  count\nmsg.jkbms.numberOfNTC = buffer[offset + 2 + 3 * 5];\n\n// 0x87 0x00 0x04: Number of battery cycles                     4                        1.0  count\noutput.History.ChargeCycles = jk_get_16bit(offset + 4 + 3 * 5);\n\n// 0x89 0x00 0x00 0x00 0x00: Total battery cycle capacity\noutput.Info.TotalChargingCycleCapacity = jk_get_32bit(offset + 4 + 3 * 6);\n\n// 0x8A 0x00 0x0E: Total number of battery strings             14                        1.0  count\nmsg.jkbms.numberOfStrings = jk_get_16bit(offset + 6 + 3 * 7);\n\n\n// 0x8B 0x00 0x00: Battery warning message                     0000 0000 0000 0000\n//\n// Bit 0    Low capacity                                1 (alarm), 0 (normal)    warning\n// Bit 1    Power tube overtemperature                  1 (alarm), 0 (normal)    alarm\n// Bit 2    Charging overvoltage                        1 (alarm), 0 (normal)    alarm\n// Bit 3    Discharging undervoltage                    1 (alarm), 0 (normal)    alarm\n// Bit 4    Battery over temperature                    1 (alarm), 0 (normal)    alarm\n// Bit 5    Charging overcurrent                        1 (alarm), 0 (normal)    alarm\n// Bit 6    Discharging overcurrent                     1 (alarm), 0 (normal)    alarm\n// Bit 7    Cell pressure difference                    1 (alarm), 0 (normal)    alarm\n// Bit 8    Overtemperature alarm in the battery box    1 (alarm), 0 (normal)    alarm\n// Bit 9    Battery low temperature                     1 (alarm), 0 (normal)    alarm\n// Bit 10   Cell overvoltage                            1 (alarm), 0 (normal)    alarm\n// Bit 11   Cell undervoltage                           1 (alarm), 0 (normal)    alarm\n// Bit 12   309_A protection                            1 (alarm), 0 (normal)    alarm\n// Bit 13   309_A protection                            1 (alarm), 0 (normal)    alarm\n// Bit 14   Reserved\n// Bit 15   Reserved\n//\n// Examples:\n// 0x0001 = 00000000 00000001: Low capacity alarm\n// 0x0002 = 00000000 00000010: MOS tube over-temperature alarm\n// 0x0003 = 00000000 00000011: Low capacity alarm AND power tube over-temperature alarm\nmsg.jkbms.batteryWarning = jk_get_16bit(offset + 6 + 3 * 8);\n\n\nconst lowCapacity = 0x0000000000000001; // Bit 0: Low capacity alarm: 1 warning only, 0 nomal -> OK\nconst powerTubeOvertemperature = 0x0000000000000010; // Bit 1: MOS tube overtemperature alarm: 1 alarm, 0 nomal -> OK\nconst chargingOvervoltage = 0x0000000000000100; // Bit 2: Charge over voltage alarm: 1 alarm, 0 nomal -> OK\nconst dischargingUndervoltage = 0x0000000000001000; // Bit 3: Discharge undervoltage alarm: 1 alarm, 0 nomal -> OK\nconst batteryOverTemperature = 0x0000000000010000; // Bit 4: Battery overtemperature alarm: 1 alarm, 0 nomal -> OK\nconst chargingOvercurrent = 0x0000000000100000; // Bit 5: Charge overcurrent alarm: 1 alarm, 0 nomal -> OK\nconst dischargingOvercurrent = 0x0000000001000000; // Bit 6: discharge over current alarm: 1 alarm, 0 nomal -> OK\nconst cellPressureDifference = 0x0000000010000000; // Bit 7: core differential pressure alarm: 1 alarm, 0 nomal -> OK\nconst overtemperatureAlarmInTheBatteryBox = 0x0000000100000000; // Bit 8: overtemperature alarm in the battery box: 1 alarm, 0 nomal -> OK\nconst batteryLowTemperature = 0x0000001000000000; // Bit 9: Battery low temperature alarm: 1 alarm, 0 nomal -> OK\nconst cellOvervoltage = 0x0000010000000000; // Bit 10: Unit overvoltage: 1 alarm, 0 nomal -> OK\nconst cellUndervoltage = 0x0000100000000000; // Bit 11: Unit undervoltage: 1 alarm, 0 nomal -> OK\nconst alarm309_AProtection = 0x0001000000000000; // Bit 12:309_A protection: 1 alarm, 0 nomal\nconst alarm309_BProtection = 0x0010000000000000; // Bit 13:309_B protection: 1 alarm, 0 nomal\n\noutput.Alarms.LowSoc = msg.jkbms.batteryWarning & lowCapacity;\noutput.Alarms.HighInternalTemperature = msg.jkbms.batteryWarning & powerTubeOvertemperature;\noutput.Alarms.HighVoltage = msg.jkbms.batteryWarning & chargingOvervoltage;\noutput.Alarms.LowVoltage = msg.jkbms.batteryWarning & dischargingUndervoltage;\noutput.Alarms.HighTemperature = (msg.jkbms.batteryWarning & batteryOverTemperature) || (msg.jkbms.batteryWarning & overtemperatureAlarmInTheBatteryBox);\noutput.Alarms.HighChargeCurrent = msg.jkbms.batteryWarning & chargingOvercurrent;\noutput.Alarms.HighDischargeCurrent = msg.jkbms.batteryWarning & dischargingOvercurrent;\noutput.Alarms.CellImbalance = msg.jkbms.batteryWarning & cellPressureDifference;\n// output.Alarms.OvertemperatureAlarmInTheBatteryBox = msg.jkbms.batteryWarning & overtemperatureAlarmInTheBatteryBox;\noutput.Alarms.LowTemperature = msg.jkbms.batteryWarning & batteryLowTemperature;\noutput.Alarms.HighCellVoltage = msg.jkbms.batteryWarning & cellOvervoltage;\noutput.Alarms.LowCellVoltage = msg.jkbms.batteryWarning & cellUndervoltage;\noutput.Alarms.alarm309_AProtection = msg.jkbms.batteryWarning & alarm309_AProtection;\noutput.Alarms.alarm309_BProtection = msg.jkbms.batteryWarning & alarm309_BProtection;\n\n\n// 0x8C 0x00 0x07: Battery status information                  0000 0000 0000 0111\n// Bit 0: Charging enabled        1 (on), 0 (off)\n// Bit 1: Discharging enabled     1 (on), 0 (off)\n// Bit 2: Balancer enabled        1 (on), 0 (off)\n// Bit 3: Battery dropped(?)      1 (normal), 0 (offline)\n// Bit 4...15: Reserved\n\n// Example: 0000 0000 0000 0111 -> Charging + Discharging + Balancer enabled\nmsg.jkbms.batteryStatus = jk_get_16bit(offset + 6 + 3 * 9);\n\nconst chargingEnabled = 0b0000000000000001;\nconst dischargingEnabled = 0b0000000000000010;\nconst balancingEnabled = 0b0000000000000100;\nconst batteryConnected = 0b0000000000001000;\n\noutput.Io.AllowToCharge = msg.jkbms.batteryStatus & chargingEnabled ? 1 : 0;\noutput.Io.AllowToDischarge = msg.jkbms.batteryStatus & dischargingEnabled ? 1 : 0;\noutput.Io.AllowToBalance = msg.jkbms.batteryStatus & balancingEnabled ? 1 : 0;\noutput.Io.ExternalRelay = msg.jkbms.batteryStatus & batteryConnected ? 1 : 0;\n\n\n//////////////////////////////////////////////////////////////////////////////////\n// CONFIGURATION SECTION\n\n// 0x8E 0x16 0x26: Total voltage overvoltage protection        5670 * 0.01 = 56.70V     0.01 V\noutput.Info.TotalVoltageOvervoltageProtection = jk_get_16bit(offset + 6 + 3 * 10) * 0.01;\n\n// 0x8F 0x10 0xAE: Total voltage undervoltage protection       4270 * 0.01 = 42.70V     0.01 V\noutput.Info.TotalVoltageUndervoltageProtection = jk_get_16bit(offset + 6 + 3 * 11) * 0.01;\n\n// 0x90 0x0F 0xD2: Cell overvoltage protection voltage         4050 * 0.001 = 4.050V     0.001 V\noutput.Info.CellVoltageOvervoltageProtection = jk_get_16bit(offset + 6 + 3 * 12) * 0.001;\n\n// 0x91 0x0F 0xA0: Cell overvoltage recovery voltage           4000 * 0.001 = 4.000V     0.001 V\noutput.Info.CellVoltageOvervoltageRecovery = jk_get_16bit(offset + 6 + 3 * 13) * 0.001;\n\n// 0x92 0x00 0x05: Cell overvoltage protection delay            5s                         1.0 s\noutput.Info.CellVoltageOvervoltageDelay = jk_get_16bit(offset + 6 + 3 * 14);\n\n// 0x93 0x0B 0xEA: Cell undervoltage protection voltage        3050 * 0.001 = 3.050V     0.001 V\noutput.Info.CellVoltageUndervoltageProtection = jk_get_16bit(offset + 6 + 3 * 15) * 0.001;\n\n// 0x94 0x0C 0x1C: Cell undervoltage recovery voltage          3100 * 0.001 = 3.100V     0.001 V\noutput.Info.CellVoltageUndervoltageRecovery = jk_get_16bit(offset + 6 + 3 * 16) * 0.001;\n\n// 0x95 0x00 0x05: Cell undervoltage protection delay           5s                         1.0 s\noutput.Info.CellVoltageUndervoltageDelay = jk_get_16bit(offset + 6 + 3 * 17);\n\n// 0x96 0x01 0x2C: Cell pressure difference protection value    300 * 0.001 = 0.300V     0.001 V     0.000-1.000V\noutput.Info.CellPressureDifferenceProtection = jk_get_16bit(offset + 6 + 3 * 18) * 0.001;\n\n// 0x97 0x00 0x07: Discharge overcurrent protection value       7A                         1.0 A\noutput.Info.DischargingOvercurrentProtection = output.Info.MaxDischargeCurrent = jk_get_16bit(offset + 6 + 3 * 19);\n\n// 0x98 0x00 0x03: Discharge overcurrent delay                  3s                         1.0 s\noutput.Info.DischargingOvercurrentDelay = jk_get_16bit(offset + 6 + 3 * 20);\n\n// 0x99 0x00 0x05: Charging overcurrent protection value        5A                         1.0 A\noutput.Info.ChargingOvercurrentProtection = output.Info.MaxChargeCurrent = jk_get_16bit(offset + 6 + 3 * 21);\n\n// 0x9A 0x00 0x05: Charge overcurrent delay                     5s                         1.0 s\noutput.Info.ChargingOvercurrentDelay = jk_get_16bit(offset + 6 + 3 * 22);\n\n// 0x9B 0x0C 0xE4: Balanced starting voltage                   3300 * 0.001 = 3.300V     0.001 V\noutput.Info.BalanceStartingVoltage = jk_get_16bit(offset + 6 + 3 * 23) * 0.001;\n\n// 0x9C 0x00 0x08: Balanced opening pressure difference           8 * 0.001 = 0.008V     0.001 V     0.01-1V\noutput.Info.BalanceOpeningPressureDifference = jk_get_16bit(offset + 6 + 3 * 24) * 0.001;\n\n// 0x9D 0x01: Active balance switch                              1 (on)                     Bool     0 (off), 1 (on)\n// output.Info.BalancingSwitch_binary = buffer[offset2 + 6 + 3 * 25];\noutput.Info.BalancerSwitch = buffer[offset + 6 + 3 * 25];\n\n// 0x9E 0x00 0x5A: Power tube temperature protection value                90°C            1.0 °C     0-100°C\noutput.Info.PowerTubeTemperatureProtection = jk_get_16bit(offset + 8 + 3 * 25);\n\n// 0x9F 0x00 0x46: Power tube temperature recovery value                  70°C            1.0 °C     0-100°C\noutput.Info.PowerTubeTemperatureRecovery = jk_get_16bit(offset + 8 + 3 * 26);\n\n// 0xA0 0x00 0x64: Temperature protection value in the battery box       100°C            1.0 °C     40-100°C\noutput.Info.TemperatureProtection = jk_get_16bit(offset + 8 + 3 * 27);\n\n// 0xA1 0x00 0x64: Temperature recovery value in the battery box         100°C            1.0 °C     40-100°C\noutput.Info.TemperatureRecovery = jk_get_16bit(offset + 8 + 3 * 28);\n\n// 0xA2 0x00 0x14: Battery temperature difference protection value        20°C            1.0 °C     5-10°C\noutput.Info.TemperatureDifferenceProtection = jk_get_16bit(offset + 8 + 3 * 29);\n\n// 0xA3 0x00 0x46: Battery charging high temperature protection value     70°C            1.0 °C     0-100°C\noutput.Info.ChargingHighTemperatureProtection = jk_get_16bit(offset + 8 + 3 * 30);\n\n// 0xA4 0x00 0x46: Battery discharge high temperature protection value    70°C            1.0 °C     0-100°C\noutput.Info.DischargingHighTemperatureProtection = jk_get_16bit(offset + 8 + 3 * 31);\n\n// 0xA5 0xFF 0xEC: Charging low temperature protection value             -20°C            1.0 °C     -45...25°C\noutput.Info.ChargingLowTemperatureProtection = jk_get_16bit(offset + 8 + 3 * 32);\n\n// 0xA6 0xFF 0xF6: Charging low temperature protection recovery value    -10°C            1.0 °C     -45...25°C\noutput.Info.ChargingLowTemperatureRecovery = jk_get_16bit(offset + 8 + 3 * 33);\n\n// 0xA7 0xFF 0xEC: Discharge low temperature protection value            -20°C            1.0 °C     -45...25°C\noutput.Info.DischargingLowTemperatureProtection = jk_get_16bit(offset + 8 + 3 * 34);\n\n// 0xA8 0xFF 0xF6: Discharge low temperature protection recovery value   -10°C            1.0 °C     -45...25°C\noutput.Info.DischargingLowTemperatureRecovery = jk_get_16bit(offset + 8 + 3 * 35);\n\n//////////////////////////////////////////////////////////////////////////////////\n\n// 0xA9 0x0E: Battery string setting                                      14              1.0 count\n// this->publish_state_(this->battery_string_setting_sensor_, (float) data[offset + 8 + 3 * 36]);\n\n// 0xAA 0x00 0x00 0x02 0x30: Total battery capacity setting              560 Ah           1.0 Ah\noutput.InstalledCapacity = jk_get_32bit(offset + 10 + 3 * 36);\noutput.RemainingCapacity = output.Capacity = Math.round((output.InstalledCapacity * (output.Soc * 0.01)) * 10) / 10;\noutput.ConsumedAmphours = Math.round((output.InstalledCapacity - output.RemainingCapacity) * 10) / 10;\n\n// TimeToGo (only charging)\nvar percent_per_seconds = Math.abs(output.Dc.Current / (output.InstalledCapacity / 100)) / 3600;\nconst soc_diff = 100 - output.Soc;\nvar seconds_to_go = soc_diff / percent_per_seconds;\noutput.TimeToGo = seconds_to_go != null && output.Dc.Current > 0.1 ? seconds_to_go : null;\n\n// Max Battery Voltage\n//TODO: Calculate battery.py:558\n\n// 0xAB 0x01: Charging MOS tube switch                                     1 (on)         Bool       0 (off), 1 (on)\n// this -> publish_state_(this -> charging_switch_binary_sensor_, (bool) buffer[offset2 + 15 + 3 * 36]);\noutput.Info.ChargingSwitch = buffer[offset + 15 + 3 * 36];\n\n// 0xAC 0x01: Discharge MOS tube switch                                    1 (on)         Bool       0 (off), 1 (on)\n// this -> publish_state_(this -> discharging_switch_binary_sensor_, (bool) buffer[offset2 + 17 + 3 * 36]);\noutput.Info.DischargingSwitch = buffer[offset + 17 + 3 * 36];\n\n// 0xAD 0x04 0x11: Current calibration                       1041mA * 0.001 = 1.041A     0.001 A     0.1-2.0A\noutput.Info.CurrentCalibration = jk_get_16bit(offset + 19 + 3 * 36) * 0.001;\n\n// 0xAE 0x01: Protection board address                                     1              1.0\noutput.Info.DeviceAddress = buffer[offset + 19 + 3 * 37];\n\n// 0xAF 0x01: Battery Type                                                 1              1.0\nconst BATTERY_TYPES = [\n    \"Lithium Iron Phosphate\", // 0x00\n    \"Ternary Lithium\",        // 0x01\n    \"Lithium Titanate\",       // 0x02\n];\nconst BATTERY_TYPES_SIZE = BATTERY_TYPES.length;\n\n// ---> 0 (lithium iron phosphate), 1 (ternary), 2 (lithium titanate)\nvar rawBatteryType = buffer[offset + 21 + 3 * 37];\nif (rawBatteryType < BATTERY_TYPES_SIZE) {\n    output.Info.BatteryType = BATTERY_TYPES[rawBatteryType];\n} else {\n    output.Info.BatteryType = \"Unknown\";\n}\n\n\n// 0xB0 0x00 0x0A: Sleep waiting time                                      10s            1.0 s\noutput.Info.SleepWaitTime = jk_get_16bit(offset + 23 + 3 * 37);\n\n// 0xB1 0x14: Low volume alarm                                             20%            1.0 %      0-80%\noutput.Info.AlarmLowVolume = buffer[offset + 23 + 3 * 38];\n\n// 0xB2 0x31 0x32 0x33 0x34 0x35 0x36 0x00 0x00 0x00 0x00: Modify parameter password\n// output.Info.Password = new TextDecoder().decode(buffer.slice(start, end));\n// output.Info.Password = buffer.substring(start, end);\noutput.Info.Password = buffer.toString('utf8', offset + 25 + 3 * 38, offset + 35 + 3 * 38);\n\n// 0xB3 0x00: Dedicated charger switch                                     1 (on)         Bool       0 (off), 1 (on)\noutput.Info.DedicatedChargerSwitch = buffer[offset + 36 + 3 * 38];\n\n// 0xB4 0x49 0x6E 0x70 0x75 0x74 0x20 0x55 0x73: Device ID code\noutput.Info.DeviceType = buffer.toString('utf8', offset + 38 + 3 * 38, offset + 46 + 3 * 38);\n\n// 0xB5 0x32 0x31 0x30 0x31: Date of manufacture\n// 0xB6 0x00 0x00 0xE2 0x00: System working hours\noutput.Info.TotalRuntime = jk_get_32bit(offset + 46 + 3 * 40) * 0.0166666666667;\noutput.Info.TotalRuntimeFormatted = format_total_runtime(jk_get_32bit(offset + 46 + 3 * 40) * 60);\n\n// 0xB7 0x48 0x36 0x2E 0x58 0x5F 0x5F 0x53\n//      0x36 0x2E 0x31 0x2E 0x33 0x53 0x5F 0x5F: Software version number\noutput.Info.SoftwareVersion = buffer.toString('utf8', offset + 51 + 3 * 40, offset + 51 + 3 * 45);\n\n// 0xB8 0x00: Whether to start current calibration\n// 0xB9 0x00 0x00 0x00 0x00: Actual battery capacity\n//   Firmware version >= 10.10 required\n//   See https://github.com/syssi/esphome-jk-bms/issues/212 for details\noutput.Info.ActualBatteryCapacity = jk_get_32bit(offset + 54 + 3 * 45);\n\n// 0xBA 0x42 0x54 0x33 0x30 0x37 0x32 0x30 0x32 0x30 0x31 0x32 0x30\n//      0x30 0x30 0x30 0x32 0x30 0x30 0x35 0x32 0x31 0x30 0x30 0x31: Manufacturer ID naming\noutput.Info.Manufacturer = buffer.toString('utf8', offset + 59 + 3 * 45, offset + 83 + 3 * 45);\n\n// 0xC0 0x01: Protocol version number\noutput.Info.ProtocolVersion = buffer[offset + 84 + 3 * 45];\n\n// 00 00 00 00 68 00 00 54 D1: End of frame\n\n// Cell balancing\nfor (let [k] of Object.entries(output.Voltages)) {\n    // node.warn({k, v});\n    let cellId = k.replace(\"Cell\", \"C\");\n    output.Balances[k] = (output.Io.AllowToBalance && (cellId == output.System.MinVoltageCellId || cellId == output.System.MaxVoltageCellId)) ? 1 : 0;\n    if (output.Balances[k] && !output.Balancing) output.Balancing == 1;\n}\n\n// msg.output = output;\n\nlet devices = flow.get(\"devices\") ?? {};\ndevices[output.Serial] = output;\nflow.set(\"devices\", devices);\n\nnode.status({ fill: \"green\", shape: \"ring\", text: output.Serial });\n\nreturn { topic: \"bms/\" + output.Serial, payload: output };",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 930,
+        "y": 200,
+        "wires": [
+            [
+                "a6b6a4d7373d9a48",
+                "fa14e0c7b76cc65b",
+                "af5de3896717d40a"
+            ]
+        ]
+    },
+    {
+        "id": "fa14e0c7b76cc65b",
+        "type": "mqtt out",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "6b4420b2cee51f23",
+        "x": 1130,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "a2743b39276890c0",
+        "type": "inject",
+        "z": "c5fcdc7f2502a308",
+        "name": "Enable",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"enabled\":true}",
+        "payloadType": "json",
+        "x": 130,
+        "y": 440,
+        "wires": [
+            [
+                "c456f8428f4333ff"
+            ]
+        ]
+    },
+    {
+        "id": "dd2149836684dcbb",
+        "type": "inject",
+        "z": "c5fcdc7f2502a308",
+        "name": "Disable",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"enabled\":false}",
+        "payloadType": "json",
+        "x": 130,
+        "y": 480,
+        "wires": [
+            [
+                "c456f8428f4333ff"
+            ]
+        ]
+    },
+    {
+        "id": "c456f8428f4333ff",
+        "type": "serial control",
+        "z": "c5fcdc7f2502a308",
+        "name": "",
+        "serial": "33a190bb5f257765",
+        "x": 330,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "1c6f39290b23c47a",
+        "type": "comment",
+        "z": "c5fcdc7f2502a308",
+        "name": "Process buffer",
+        "info": "",
+        "x": 930,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "a04da0a5a6d7777a",
+        "type": "serial-port",
+        "name": "/dev/ttyUSB6",
+        "serialport": "/dev/ttyUSB6",
+        "serialbaud": "115200",
+        "databits": "8",
+        "parity": "none",
+        "stopbits": "1",
+        "waitfor": "",
+        "dtr": "none",
+        "rts": "none",
+        "cts": "none",
+        "dsr": "none",
+        "newline": "500",
+        "bin": "bin",
+        "out": "interbyte",
+        "addchar": "",
+        "responsetimeout": "10"
+    },
+    {
+        "id": "6b4420b2cee51f23",
+        "type": "mqtt-broker",
+        "name": "core",
+        "broker": "10.50.0.43",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "5",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "33a190bb5f257765",
+        "type": "serial-port",
+        "name": "/dev/ttyUSB8",
+        "serialport": "/dev/ttyUSB8",
+        "serialbaud": "115200",
+        "databits": "8",
+        "parity": "none",
+        "stopbits": "1",
+        "waitfor": "",
+        "dtr": "none",
+        "rts": "none",
+        "cts": "none",
+        "dsr": "none",
+        "newline": "500",
+        "bin": "bin",
+        "out": "interbyte",
+        "addchar": "",
+        "responsetimeout": "10"
+    }
+]
